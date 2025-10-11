@@ -1,9 +1,13 @@
+# monkey patch to fix issues in msaf
+import scipy
+import numpy as np
+scipy.inf = np.inf
+
 import argparse
 import os
 from collections import defaultdict
 from pathlib import Path
 import mir_eval
-import numpy as np
 import pandas as pd
 from dataset.custom_types import MsaInfo
 from dataset.label2id import LABEL_TO_ID

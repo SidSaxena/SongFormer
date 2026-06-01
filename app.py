@@ -588,4 +588,7 @@ if __name__ == "__main__":
     print("Models loaded successfully!")
 
     # Launch interface
-    demo.launch(server_name="127.0.0.1", server_port=7891, debug=True)
+    # Use SONGFORMER_SHARE=1 to get a public gradio.live URL
+    share = os.environ.get("SONGFORMER_SHARE", "0") == "1"
+    server_name = "0.0.0.0" if share else "127.0.0.1"
+    demo.launch(share=share, server_name=server_name, server_port=7891, debug=True)

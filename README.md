@@ -1,3 +1,14 @@
+---
+title: My SongFormer
+emoji: 🎵
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+python_version: 3.10
+app_file: app.py
+pinned: false
+---
+
 <p align="center">
   <img src="figs/logo.png" width="50%" />
 </p>

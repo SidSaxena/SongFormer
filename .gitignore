@@ -52,3 +52,7 @@ cython_debug/
 *.swp
 
 .ruff_cache/
+
+# Model checkpoints (downloaded at runtime)
+ckpts/
+.gradio/

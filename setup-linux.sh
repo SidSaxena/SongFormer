@@ -3,6 +3,15 @@ set -e
 
 echo "=== SongFormer Setup (Linux + CUDA GPU) ==="
 
+# Check if conda is available
+if ! command -v conda &> /dev/null; then
+    echo "ERROR: conda is not installed or not in PATH."
+    echo ""
+    echo "Fix: Install Miniconda from https://docs.conda.io/en/latest/miniconda.html"
+    echo "Then restart your terminal and retry."
+    exit 1
+fi
+
 # Create conda environment
 conda create -n songformer python=3.10 -y
 eval "$(conda shell.bash hook)"

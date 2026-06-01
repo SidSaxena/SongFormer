@@ -9,8 +9,26 @@ echo   - NVIDIA GPU with updated drivers
 echo   - For Docker: Docker Desktop with WSL2 backend
 echo.
 
+:: Check if conda is available
+where conda >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ERROR: conda is not in PATH.
+    echo.
+    echo Fix: Run this script from an Anaconda Prompt, or initialize conda:
+    echo   1. Open Anaconda Prompt from the Start Menu
+    echo   2. Navigate to this directory: cd %cd%
+    echo   3. Run: setup-windows.bat
+    echo.
+    echo Alternatively, run 'conda init cmd.exe' once, then retry.
+    exit /b 1
+)
+
 :: Create conda environment
 call conda create -n songformer python=3.10 -y
+if %errorlevel% neq 0 (
+    echo ERROR: Failed to create conda environment.
+    exit /b 1
+)
 call conda activate songformer
 
 :: Install PyTorch with CUDA support

@@ -2,6 +2,8 @@
   <img src="figs/logo.png" width="50%" />
 </p>
 
+> **Note:** This Chinese README reflects the original ASLP-lab version. For the latest cross-platform features (Docker, Apple Silicon MPS, Google Colab), see the [English README](./README.md).
+
 <h1 align="center">SongFormer: Scaling Music Structure Analysis with Heterogeneous Supervision</h1>
 
 <div align="center">

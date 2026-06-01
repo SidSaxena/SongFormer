@@ -22,6 +22,10 @@ from muq import MuQ
 from musicfm.model.musicfm_25hz import MusicFM25Hz
 from omegaconf import OmegaConf
 from tqdm import tqdm
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 mp.set_start_method("spawn", force=True)
 
@@ -56,7 +60,7 @@ DATASET_IDS = [5]
 TIME_DUR = 420
 INPUT_SAMPLING_RATE = 24000
 
-from dataset.label2id import DATASET_ID_ALLOWED_LABEL_IDS, DATASET_LABEL_TO_DATASET_ID
+from dataset.label2id import DATASET_ID_ALLOWED_LABEL_IDS, DATASET_LABEL_TO_DATASET_ID, ID_TO_LABEL
 from postprocessing.functional import postprocess_functional_structure
 
 
@@ -78,6 +82,112 @@ def get_processing_ids(input_path, processed_ids_set):
             if line.strip() and Path(line.strip()).stem not in processed_ids_set:
                 ret.append(line.strip())
     return ret
+
+
+def save_visualizations(logits, msa_infer_output, data_id, output_dir, label_num=8):
+    """Save activation visualizations (line plot PDF + heatmap PNG) and raw logits (.npy)."""
+    try:
+        function_vals = logits["function_logits"].squeeze().cpu().numpy()  # [T, 128]
+        boundary_vals = logits["boundary_logits"].squeeze().cpu().numpy()  # [T]
+
+        # --- Raw logits ---
+        logits_dir = os.path.join(output_dir, "logits")
+        os.makedirs(logits_dir, exist_ok=True)
+        np.save(os.path.join(logits_dir, f"{data_id}_function.npy"), function_vals)
+        np.save(os.path.join(logits_dir, f"{data_id}_boundary.npy"), boundary_vals)
+
+        # --- Plots ---
+        plots_dir = os.path.join(output_dir, "plots")
+        os.makedirs(plots_dir, exist_ok=True)
+
+        T = function_vals.shape[0]
+        time_axis = np.arange(T) / AFTER_DOWNSAMPLING_FRAME_RATES
+        top_classes = np.argsort(function_vals.mean(axis=0))[-label_num:]
+
+        # A. Line plot (PDF)
+        fig, ax = plt.subplots(2, 1, figsize=(15, 8), sharex=True)
+
+        ax[0].plot(time_axis, boundary_vals, label="Boundary logit", color="orange")
+        ax[0].set_title("Boundary logits")
+        ax[0].set_ylabel("Logit")
+        ax[0].legend()
+        ax[0].grid(True)
+
+        for cls in top_classes:
+            ax[1].plot(
+                time_axis,
+                function_vals[:, cls],
+                label=f"{ID_TO_LABEL.get(cls, f'Class_{cls}')}",
+            )
+        ax[1].set_title(f"Top {label_num} Function logits by mean activation")
+        ax[1].set_xlabel("Time (seconds)")
+        ax[1].set_ylabel("Logit")
+        ax[1].xaxis.set_major_locator(ticker.MultipleLocator(20))
+        ax[1].xaxis.set_minor_locator(ticker.MultipleLocator(5))
+        ax[1].xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+        ax[1].legend()
+        ax[1].grid(True)
+
+        for t_sec, label in msa_infer_output:
+            for a in ax:
+                a.axvline(x=t_sec, color="red", linestyle="--", linewidth=0.8)
+            if label != "end":
+                ax[1].text(
+                    t_sec + 0.3,
+                    ax[1].get_ylim()[1] * 0.85,
+                    label,
+                    rotation=90,
+                    fontsize=8,
+                    color="red",
+                )
+
+        plt.suptitle(f"{data_id} — MSA Logits Overview", fontsize=16)
+        plt.tight_layout()
+        plt.savefig(os.path.join(plots_dir, f"{data_id}.pdf"), bbox_inches="tight")
+        plt.close(fig)
+
+        # B. Heatmap (PNG)
+        fig, ax = plt.subplots(figsize=(15, 6))
+        class_labels = [ID_TO_LABEL.get(cls, f"Class_{cls}") for cls in top_classes]
+        heatmap_data = function_vals[:, top_classes]  # [T, label_num]
+
+        im = ax.imshow(
+            heatmap_data.T,
+            aspect="auto",
+            origin="lower",
+            cmap="viridis",
+            extent=[time_axis[0], time_axis[-1], -0.5, label_num - 0.5],
+        )
+        ax.set_yticks(range(label_num))
+        ax.set_yticklabels(class_labels)
+        ax.set_xlabel("Time (seconds)")
+        ax.set_ylabel("Class")
+        ax.set_title(f"{data_id} — Function Logits Heatmap (Top {label_num})")
+
+        for t_sec, label in msa_infer_output:
+            ax.axvline(x=t_sec, color="white", linestyle="--", linewidth=0.8, alpha=0.7)
+            if label != "end":
+                ax.text(
+                    t_sec + 0.3,
+                    label_num - 0.7,
+                    label,
+                    rotation=90,
+                    fontsize=7,
+                    color="white",
+                    alpha=0.9,
+                )
+
+        plt.colorbar(im, ax=ax, label="Logit value")
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join(plots_dir, f"{data_id}_heatmap.png"),
+            dpi=150,
+            bbox_inches="tight",
+        )
+        plt.close(fig)
+
+    except Exception as e:
+        logger.error(f"Visualization failed for {data_id}: {e}")
 
 
 def load_checkpoint(checkpoint_path, device=None):
@@ -346,6 +456,11 @@ def inference(rank, queue_input: mp.Queue, queue_output: mp.Queue, args):
                     ensure_ascii=False,
                 )
 
+                if args.save_plots:
+                    save_visualizations(
+                        logits, msa_infer_output, Path(item).stem, args.output_dir
+                    )
+
                 queue_output.put(None)
 
             except Exception as e:
@@ -389,6 +504,7 @@ def main(args):
         config_path=args.config_path,
         no_rule_post_processing=args.no_rule_post_processing,
         device=getattr(args, 'device', None),
+        save_plots=args.save_plots,
     )
 
     processes = []
@@ -454,6 +570,11 @@ if __name__ == "__main__":
         help="Disable rule-based post-processing",
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument(
+        "--save_plots",
+        action="store_true",
+        help="Save activation visualizations (line plots + heatmaps) and raw logits (.npy)",
+    )
     parser.add_argument("--device", type=str, default=None, help="Force device (mps, cuda, cpu). Auto-detected if not set.")
 
     args = parser.parse_args()

@@ -45,6 +45,23 @@ msa_model = None
 device = None
 
 
+def get_device():
+    """Select the best available device: MPS (Apple Silicon), CUDA, or CPU."""
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def clear_device_cache(device):
+    """Clear GPU memory cache for the given device type."""
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
+    elif device.type == "mps":
+        torch.mps.empty_cache()
+
+
 def load_checkpoint(checkpoint_path, device=None):
     """Load checkpoint from path"""
     if device is None:
@@ -66,7 +83,7 @@ def initialize_models(model_name: str, checkpoint: str, config_path: str):
     global muq_model, musicfm_model, msa_model, device
 
     # Set device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = get_device()
 
     # Load MuQ
     muq_model = MuQ.from_pretrained("OpenMuQ/MuQ-large-msd-iter")
@@ -151,14 +168,14 @@ def process_audio(audio_path, win_size=420, hop_size=420, num_classes=128):
             muq_output = muq_model(audio_seg.unsqueeze(0), output_hidden_states=True)
             muq_embd_420s = muq_output["hidden_states"][10]
             del muq_output
-            torch.cuda.empty_cache()
+            clear_device_cache(device)
 
             _, musicfm_hidden_states = musicfm_model.get_predictions(
                 audio_seg.unsqueeze(0)
             )
             musicfm_embd_420s = musicfm_hidden_states[10]
             del musicfm_hidden_states
-            torch.cuda.empty_cache()
+            clear_device_cache(device)
 
             # Process 30-second segments
             wraped_muq_embd_30s = []
@@ -182,14 +199,14 @@ def process_audio(audio_path, win_size=420, hop_size=420, num_classes=128):
                         output_hidden_states=True,
                     )["hidden_states"][10]
                 )
-                torch.cuda.empty_cache()
+                clear_device_cache(device)
 
                 wraped_musicfm_embd_30s.append(
                     musicfm_model.get_predictions(
                         audio[start_idx_30s:end_idx_30s].unsqueeze(0)
                     )[1][10]
                 )
-                torch.cuda.empty_cache()
+                clear_device_cache(device)
 
             if wraped_muq_embd_30s:
                 wraped_muq_embd_30s = torch.concatenate(wraped_muq_embd_30s, dim=1)

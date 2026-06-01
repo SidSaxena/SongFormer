@@ -1,0 +1,17 @@
+services:
+  songformer:
+    build: .
+    ports:
+      - "7860:7860"
+    volumes:
+      - songformer-ckpts:/app/src/SongFormer/ckpts
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  songformer-ckpts:

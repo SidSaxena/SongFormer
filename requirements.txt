@@ -1,7 +1,8 @@
 # Core Deep Learning Framework
-# Install with: pip install torch==2.7.1 torchaudio==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cu128
-torch==2.7.1
-torchaudio==2.7.1
+# For CUDA (Linux/Windows): pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+# For CPU/Mac: pip install torch==2.8.0 torchaudio==2.8.0
+torch==2.8.0
+torchaudio==2.8.0
 lightning==2.5.1.post0
 
 # ML/DL Libraries
@@ -77,7 +78,6 @@ addict==2.4.0
 beartype==0.21.0
 
 # Others
-triton==3.3.1
 setuptools<70
 muq==0.1.0
 vmo==0.30.5

@@ -180,37 +180,72 @@ We've achieved **breakthrough performance** in music structure analysis, setting
 
 ## Installation
 
-### Setting up Python Environment
+### Option 1: Docker (Linux / Windows with GPU)
+
+Requires [Docker](https://docs.docker.com/get-docker/) and [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) for GPU support.
 
 ```bash
-git clone https://github.com/ASLP-lab/SongFormer.git
-
-# Get MuQ and MusicFM source code
+git clone https://github.com/SidSaxena/SongFormer.git
+cd SongFormer
 git submodule update --init --recursive
+docker compose up --build
+```
 
+Open `http://localhost:7860` in your browser. Checkpoints download automatically on first run.
+
+> **Mac users:** Docker works but runs on CPU only (no NVIDIA GPU on Mac). For MPS acceleration, use Option 2.
+
+### Option 2: Conda (Linux / Windows / Mac)
+
+```bash
+git clone https://github.com/SidSaxena/SongFormer.git
+cd SongFormer
+git submodule update --init --recursive
+```
+
+Run the setup script for your platform:
+
+```bash
+# Linux (CUDA GPU)
+bash setup-linux.sh
+
+# Windows (CUDA GPU) — run in Anaconda Prompt
+setup-windows.bat
+
+# Mac (Apple Silicon MPS / Intel CPU)
+bash setup-mac.sh
+```
+
+Then activate and run:
+
+```bash
+conda activate songformer
+python app.py
+```
+
+For a public share link: `SONGFORMER_SHARE=1 python app.py`
+
+### Option 3: Manual setup
+
+```bash
 conda create -n songformer python=3.10 -y
 conda activate songformer
-```
 
-For users in mainland China, you may need to set up pip mirror source:
+# For CUDA GPU (Linux/Windows):
+pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
 
-```bash
-pip config set global.index-url https://pypi.mirrors.ustc.edu.cn/simple
-```
+# For CPU/Mac:
+pip install torch==2.8.0 torchaudio==2.8.0
 
-Install dependencies:
-
-```bash
 pip install -r requirements.txt
 ```
 
-We tested this on Ubuntu 22.04.1 LTS and it works normally. If you cannot install, you may need to remove version constraints in `requirements.txt`
-
 ### Download Pre-trained Models
+
+Models download automatically on first run. To download manually:
 
 ```bash
 cd src/SongFormer
-# For users in mainland China, you can modify according to the py file instructions to use hf-mirror.com for downloading
 python utils/fetch_pretrained.py
 ```
 
@@ -220,7 +255,6 @@ After downloading, you can verify the md5sum values in `src/SongFormer/ckpts/md5
 md5sum ckpts/MusicFM/msd_stats.json
 md5sum ckpts/MusicFM/pretrained_msd.pt
 md5sum ckpts/SongFormer.safetensors
-# md5sum ckpts/SongFormer.pt
 ```
 
 ## Inference
@@ -235,6 +269,13 @@ First, change directory to the project root directory and activate the environme
 
 ```bash
 conda activate songformer
+python app.py
+```
+
+For a public share link (anyone on the internet can use it):
+
+```bash
+SONGFORMER_SHARE=1 python app.py
 ```
 
 You can modify the server port and listening address in the last line of `app.py` according to your preference.

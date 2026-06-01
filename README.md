@@ -264,7 +264,7 @@ setup-windows.bat
 bash setup-mac.sh
 ```
 
-> **Mac note:** `setup-mac.sh` uses `requirements-mac.txt` which excludes `pesq` (requires C compilation) and `gpustat` (NVIDIA-only). These are not needed for inference or the Gradio app.
+> **Mac/Windows note:** The setup scripts use `requirements-no-build.txt` which excludes `pesq` (requires C compilation) and `gpustat` (NVIDIA-only monitoring). These are not needed for inference or the Gradio app. Linux users with a C compiler can use `requirements.txt` directly.
 
 Then activate and run:
 

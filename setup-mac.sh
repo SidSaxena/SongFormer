@@ -25,8 +25,8 @@ conda activate songformer
 # Install PyTorch (CPU-only — no CUDA on Mac)
 pip install torch==2.8.0 torchaudio==2.8.0
 
-# Install remaining dependencies (mac-compatible, excludes pesq and gpustat)
-pip install -r requirements-mac.txt
+# Install remaining dependencies (excludes pesq and gpustat — no C compiler needed)
+pip install -r requirements-no-build.txt
 
 # Download model checkpoints
 python -c "

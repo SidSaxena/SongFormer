@@ -34,8 +34,8 @@ call conda activate songformer
 :: Install PyTorch with CUDA support
 pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
 
-:: Install remaining dependencies
-pip install -r requirements.txt
+:: Install remaining dependencies (excludes pesq and gpustat — no C compiler needed)
+pip install -r requirements-no-build.txt
 
 :: Download model checkpoints
 python -c "import os; os.chdir('src/SongFormer'); from utils.fetch_pretrained import download_all; download_all()"

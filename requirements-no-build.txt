@@ -1,6 +1,9 @@
-# Mac-compatible requirements
+# Requirements without packages that require C compilation
+# Use on Mac (no pesq wheels for Apple Silicon) and Windows (no Visual Studio Build Tools)
+# Also excludes gpustat (NVIDIA-only monitoring tool, not needed at runtime)
+#
 # Removed from requirements.txt:
-#   pesq (requires C compilation, no prebuilt wheels for Apple Silicon)
+#   pesq (requires C compiler: gcc on Linux/Mac, MSVC on Windows)
 #   gpustat (NVIDIA-only GPU monitoring tool)
 
 # Core Deep Learning Framework

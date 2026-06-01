@@ -17,3 +17,4 @@ runs/
 tensorboard_logs/
 .DS_Store
 .ruff_cache/
+src/third_party/MuQ/src/recipes/pretrain/fairseq/

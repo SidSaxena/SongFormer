@@ -16,6 +16,8 @@ python infer/infer.py \
 --checkpoint SongFormer.safetensors \
 --config_path SongFormer.yaml \
 -gn 1 \
--tn 1
+-tn 1 \
+--save_plots \
+--device mps
 # --debug
 # --no_rule_post_processing

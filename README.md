@@ -1,14 +1,3 @@
----
-title: SongFormer
-emoji: 🎵
-colorFrom: blue
-colorTo: indigo
-sdk: gradio
-python_version: 3.10
-app_file: app.py
-pinned: false
----
-
 <p align="center">
   <img src="figs/logo.png" width="50%" />
 </p>
@@ -45,16 +34,6 @@ pinned: false
   <a href="http://www.npu-aslp.org/">
     <img src="https://img.shields.io/badge/🏫-ASLP-grey?labelColor=lightgrey" alt="lab">
   </a>
-  <br>
-  <a href="https://colab.research.google.com/github/SidSaxena/SongFormer/blob/cross-platform/notebooks/SongFormer-Colab.ipynb">
-    <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab">
-  </a>
-  <a href="https://github.com/SidSaxena/SongFormer">
-    <img src="https://img.shields.io/badge/Fork-GitHub-black?logo=github" alt="Fork on GitHub">
-  </a>
-  <a href="https://huggingface.co/spaces/SidSaxena/SongFormer">
-    <img src="https://img.shields.io/badge/Fork-HuggingFace-yellow?logo=huggingface" alt="Fork HF Space">
-  </a>
 </div>
 
 </div>
@@ -87,10 +66,69 @@ SongFormer is a music structure analysis framework that leverages multi-resoluti
 
 ![](figs/songformer.png)
 
-## 📢 News and Updates
+> [!NOTE]
+> **This is a fork** of [ASLP-lab/SongFormer](https://github.com/ASLP-lab/SongFormer) that adds cross-platform support, an upgraded Gradio app (result export + batch processing), a Google Colab notebook, Docker packaging, and a Hugging Face Space deployment. Everything fork-specific lives in the [Fork Additions](#-fork-additions) section directly below — all content after that section is the unmodified upstream README.
 
-🔥 **June 2026**  
-**Cross-Platform Support** – Added Docker, Apple Silicon MPS, and Google Colab support. Run SongFormer on Linux, Windows, Mac, or Colab. Includes a [ready-to-use Colab notebook](https://colab.research.google.com/github/SidSaxena/SongFormer/blob/cross-platform/notebooks/SongFormer-Colab.ipynb).
+## ✨ Fork Additions
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/SidSaxena/SongFormer/blob/main/notebooks/SongFormer-Colab.ipynb)
+[![Fork on GitHub](https://img.shields.io/badge/Fork-GitHub-black?logo=github)](https://github.com/SidSaxena/SongFormer)
+[![Fork HF Space](https://img.shields.io/badge/Fork-HuggingFace-yellow?logo=huggingface)](https://huggingface.co/spaces/SidSaxena/SongFormer)
+
+*All changes below were added in this fork (June 2026) and are not part of the upstream project.*
+
+### 🎛️ Upgraded Gradio app
+
+- **Result export** (Single File tab): download any analysis as JSON, MSA text, CSV, plot PNG, or a ZIP of all four.
+- **Batch tab**: analyze multiple files in one run — live per-file status (queued → processing → done), a combined ZIP with per-song folders plus `summary.csv` / `combined.json` manifests (downloadable mid-run), and a per-file inspector with segments table, JSON/MSA text, activation plot, and audio playback.
+- **Hardware-aware**: picks CUDA, Apple Silicon (MPS), or CPU automatically.
+
+### 🖥️ Cross-platform support
+
+| Platform | GPU | Method | Notes |
+|----------|-----|--------|-------|
+| Linux + NVIDIA GPU | CUDA | Docker / Conda | Best performance |
+| Windows + NVIDIA GPU | CUDA | Docker / Conda | Via WSL2 or native CUDA |
+| Mac Apple Silicon | MPS | Conda | `setup-mac.sh` |
+| Mac Intel | CPU | Conda | `setup-mac.sh` |
+| Google Colab | CUDA | [Notebook](https://colab.research.google.com/github/SidSaxena/SongFormer/blob/main/notebooks/SongFormer-Colab.ipynb) | Free GPU |
+
+### 🚀 Quickstart (fork)
+
+**Colab** — click the badge above and run all cells. Includes the Gradio app and batch inference.
+
+**Docker (Linux / Windows with NVIDIA GPU)**
+
+```bash
+git clone https://github.com/SidSaxena/SongFormer.git && cd SongFormer
+git submodule update --init --recursive
+docker compose up --build        # then open http://localhost:7860
+```
+
+**Conda (Linux / Windows / Mac)**
+
+```bash
+git clone https://github.com/SidSaxena/SongFormer.git && cd SongFormer
+git submodule update --init --recursive
+bash setup-linux.sh              # or setup-windows.bat / setup-mac.sh
+conda activate songformer
+python app.py                    # SONGFORMER_SHARE=1 python app.py for a public link
+```
+
+> **Mac/Windows note:** the setup scripts install from `requirements-no-build.txt`, which skips `pesq` (needs a C compiler) and `gpustat` (NVIDIA-only). Neither is needed for inference or the app.
+
+### 🤗 Hugging Face Space (fork deployment)
+
+The fork is deployed at [SidSaxena/SongFormer](https://huggingface.co/spaces/SidSaxena/SongFormer) with both tabs available. The deployment is ZeroGPU-ready (per-file dynamic GPU durations) and currently runs on CPU hardware. The upstream demo remains at [ASLP-lab/SongFormer](https://huggingface.co/spaces/ASLP-lab/SongFormer).
+
+### 🛠️ Development
+
+- Unit tests for the export/serialization layer: `python -m pytest tests/`
+- Fork feature specs and plans live under `docs/superpowers/`
+
+---
+
+## 📢 News and Updates
 
 🔥 **October 3, 2025**  
 **Open-sourced Training and Evaluation Code** – We have released the full training and evaluation code to support and promote community development and further research.
@@ -106,34 +144,10 @@ SongFormer is a music structure analysis framework that leverages multi-resoluti
 
 ## 🚀 QuickStart
 
-### Easiest: Google Colab (free GPU)
+This model supports Hugging Face's from_pretrained method. To quickly get started with this code, you need to do two things:
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/SidSaxena/SongFormer/blob/cross-platform/notebooks/SongFormer-Colab.ipynb)
-
-Click the badge above → run all cells → done. Includes Gradio app and batch inference.
-
-### Docker (Linux / Windows)
-
-```bash
-git clone https://github.com/SidSaxena/SongFormer.git && cd SongFormer
-git submodule update --init --recursive
-docker compose up --build
-```
-Open `http://localhost:7860`
-
-### Conda (Linux / Windows / Mac)
-
-```bash
-git clone https://github.com/SidSaxena/SongFormer.git && cd SongFormer
-git submodule update --init --recursive
-bash setup-linux.sh    # or setup-windows.bat / setup-mac.sh
-conda activate songformer
-python app.py
-```
-
-For a public share link: `SONGFORMER_SHARE=1 python app.py`
-
-See [Installation](#installation) for full details and platform support.
+1. Follow the instructions in `Setting up Python Environment` to configure your Python environment
+2. Visit our [Hugging Face model page](https://huggingface.co/ASLP-lab/SongFormer), and run the code provided in the README
 
 ## 🌟 Key Highlights
 
@@ -142,7 +156,6 @@ We've achieved **breakthrough performance** in music structure analysis, setting
 - ✨ **State-of-the-art accuracy** on both Western and Chinese music datasets
 - ⚡ **Blazing fast inference** - faster than comparable models
 - 💰 **Cost-effective** - No API fees, runs locally on single GPU
-- 🖥️ **Cross-platform** - Linux, Windows, Mac (Apple Silicon MPS), Google Colab
 
 ### ⏱️ Speed Comparison
 
@@ -218,84 +231,37 @@ We've achieved **breakthrough performance** in music structure analysis, setting
 
 ## Installation
 
-### Platform Support
-
-| Platform | GPU | Method | Notes |
-|----------|-----|--------|-------|
-| Linux + NVIDIA GPU | CUDA | Docker / Conda | Best performance |
-| Windows + NVIDIA GPU | CUDA | Docker / Conda | Via WSL2 or native CUDA |
-| Mac Apple Silicon | MPS | Conda | `setup-mac.sh` |
-| Mac Intel | CPU | Conda | `setup-mac.sh` |
-| Google Colab | CUDA | [Notebook](https://colab.research.google.com/github/SidSaxena/SongFormer/blob/cross-platform/notebooks/SongFormer-Colab.ipynb) | Free GPU with Colab Pro |
-
-### Option 1: Docker (Linux / Windows with GPU)
-
-Requires [Docker](https://docs.docker.com/get-docker/) and [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) for GPU support.
+### Setting up Python Environment
 
 ```bash
-git clone https://github.com/SidSaxena/SongFormer.git
-cd SongFormer
+git clone https://github.com/ASLP-lab/SongFormer.git
+
+# Get MuQ and MusicFM source code
 git submodule update --init --recursive
-docker compose up --build
-```
 
-Open `http://localhost:7860` in your browser. Checkpoints download automatically on first run.
-
-> **Mac users:** Docker works but runs on CPU only (no NVIDIA GPU on Mac). For MPS acceleration, use Option 2.
-
-### Option 2: Conda (Linux / Windows / Mac)
-
-```bash
-git clone https://github.com/SidSaxena/SongFormer.git
-cd SongFormer
-git submodule update --init --recursive
-```
-
-Run the setup script for your platform:
-
-```bash
-# Linux (CUDA GPU)
-bash setup-linux.sh
-
-# Windows (CUDA GPU) — run in Anaconda Prompt
-setup-windows.bat
-
-# Mac (Apple Silicon MPS / Intel CPU)
-bash setup-mac.sh
-```
-
-> **Mac/Windows note:** The setup scripts use `requirements-no-build.txt` which excludes `pesq` (requires C compilation) and `gpustat` (NVIDIA-only monitoring). These are not needed for inference or the Gradio app. Linux users with a C compiler can use `requirements.txt` directly.
-
-Then activate and run:
-
-```bash
-conda activate songformer
-python app.py
-```
-
-For a public share link: `SONGFORMER_SHARE=1 python app.py`
-
-### Option 3: Manual setup
-
-```bash
 conda create -n songformer python=3.10 -y
 conda activate songformer
+```
 
-# For CUDA GPU (Linux/Windows):
-pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+For users in mainland China, you may need to set up pip mirror source:
 
-# For CPU/Mac:
-pip install torch==2.8.0 torchaudio==2.8.0
+```bash
+pip config set global.index-url https://pypi.mirrors.ustc.edu.cn/simple
+```
 
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
-### Download Pre-trained Models
+We tested this on Ubuntu 22.04.1 LTS and it works normally. If you cannot install, you may need to remove version constraints in `requirements.txt`
 
-Models download automatically on first run. To download manually:
+### Download Pre-trained Models
 
 ```bash
 cd src/SongFormer
+# For users in mainland China, you can modify according to the py file instructions to use hf-mirror.com for downloading
 python utils/fetch_pretrained.py
 ```
 
@@ -305,13 +271,14 @@ After downloading, you can verify the md5sum values in `src/SongFormer/ckpts/md5
 md5sum ckpts/MusicFM/msd_stats.json
 md5sum ckpts/MusicFM/pretrained_msd.pt
 md5sum ckpts/SongFormer.safetensors
+# md5sum ckpts/SongFormer.pt
 ```
 
 ## Inference
 
 ### 1. One-Click Inference with HuggingFace Space
 
-Available at: [https://huggingface.co/spaces/SidSaxena/SongFormer](https://huggingface.co/spaces/SidSaxena/SongFormer) (also: [ASLP-lab original](https://huggingface.co/spaces/ASLP-lab/SongFormer))
+Available at: [https://huggingface.co/spaces/ASLP-lab/SongFormer](https://huggingface.co/spaces/ASLP-lab/SongFormer)
 
 ### 2. Gradio App
 
@@ -319,13 +286,6 @@ First, change directory to the project root directory and activate the environme
 
 ```bash
 conda activate songformer
-python app.py
-```
-
-For a public share link (anyone on the internet can use it):
-
-```bash
-SONGFORMER_SHARE=1 python app.py
 ```
 
 You can modify the server port and listening address in the last line of `app.py` according to your preference.
@@ -358,13 +318,12 @@ Below are some configurable parameters from the `src/SongFormer/infer.sh` script
 -o              # Output directory for annotation results
 --model         # Annotation model; the default is 'SongFormer', change if using a fine-tuned model
 --checkpoint    # Path to the model checkpoint file
---config_path   # Path to the configuration file
+--config_pat    # Path to the configuration file
 -gn             # Total number of GPUs to use — should match the number specified in CUDA_VISIBLE_DEVICES
 -tn             # Number of processes to run per GPU
---device        # Force device: mps, cuda, or cpu (auto-detected if not set)
 ```
 
-Device auto-detection order: CUDA > MPS (Apple Silicon) > CPU. Override with `--device mps`, `--device cuda`, or `--device cpu`.
+You can control which GPUs are used by setting the `CUDA_VISIBLE_DEVICES` environment variable.
 
 > Notes
 > - You may need to modify line 121 in `src/third_party/musicfm/model/musicfm_25hz.py` to:

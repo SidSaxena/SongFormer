@@ -70,6 +70,20 @@ def segments_to_csv(segments) -> str:
     return buf.getvalue()
 
 
+def segments_to_audacity(segments) -> str:
+    """Build an Audacity label-track file from segment dicts.
+
+    One line per segment: start<TAB>end<TAB>label, seconds with six
+    decimals (Audacity's File > Import > Labels format).
+    """
+    lines = []
+    for seg in segments:
+        start = float(seg["start"])
+        end = float(seg["end"])
+        lines.append(f"{start:.6f}\t{end:.6f}\t{seg['label']}")
+    return "\n".join(lines) + ("\n" if lines else "")
+
+
 def segments_to_combined_csv(named) -> str:
     """Build a combined CSV across files.
 

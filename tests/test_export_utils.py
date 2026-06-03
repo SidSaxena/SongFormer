@@ -222,3 +222,16 @@ def test_new_run_dir(tmp_path):
     assert os.path.dirname(run_dir) == str(parent)
     assert os.path.basename(run_dir).startswith("run_")
     assert not stale.exists()  # stale run swept by the bootstrap
+
+
+def test_segments_to_audacity():
+    segments = [
+        {"start": "0.0", "end": "12.34", "label": "intro"},
+        {"start": 12.34, "end": 45.67, "label": "verse"},
+    ]
+    text = export_utils.segments_to_audacity(segments)
+    lines = text.strip().split("\n")
+    assert lines[0] == "0.000000\t12.340000\tintro"
+    assert lines[1] == "12.340000\t45.670000\tverse"
+    assert len(lines) == 2
+    assert text.endswith("\n")

@@ -444,8 +444,14 @@ def process_and_analyze(audio_file):
         # Create visualization
         fig = create_visualization(logits, msa_output)
 
-        # Write downloadable export files into a per-run temp directory
-        out_dir = tempfile.mkdtemp(prefix="songformer_")
+        # Write downloadable export files into a per-run temp directory.
+        # Sweep stale run dirs first so they don't accumulate across runs.
+        exports_parent = os.path.join(tempfile.gettempdir(), "songformer_exports")
+        os.makedirs(exports_parent, exist_ok=True)
+        export_utils.cleanup_old_exports(
+            exports_parent, export_utils.DEFAULT_EXPORT_TTL_SECONDS
+        )
+        out_dir = tempfile.mkdtemp(prefix="run_", dir=exports_parent)
         export_paths = export_utils.write_exports(
             audio_file, segments, json_format, msa_format, fig, out_dir
         )

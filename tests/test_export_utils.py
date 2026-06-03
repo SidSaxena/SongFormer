@@ -79,3 +79,42 @@ def test_make_zip(tmp_path):
     assert returned == zip_path
     with zipfile.ZipFile(zip_path) as zf:
         assert sorted(zf.namelist()) == ["a.csv", "a.json"]
+
+
+def test_cleanup_old_exports(tmp_path):
+    parent = tmp_path / "exports"
+    parent.mkdir()
+    old = parent / "run_old"
+    old.mkdir()
+    (old / "f.txt").write_text("x")
+    new = parent / "run_new"
+    new.mkdir()
+    (new / "f.txt").write_text("x")
+    now = 1_000_000.0
+    os.utime(old, (now - 7200, now - 7200))  # 2h old
+    os.utime(new, (now - 600, now - 600))  # 10m old
+
+    removed = export_utils.cleanup_old_exports(str(parent), 3600, now=now)
+
+    assert [os.path.basename(p) for p in removed] == ["run_old"]
+    assert not old.exists()
+    assert new.exists()
+
+
+def test_cleanup_old_exports_missing_parent(tmp_path):
+    missing = str(tmp_path / "does_not_exist")
+    assert export_utils.cleanup_old_exports(missing, 3600) == []
+
+
+def test_cleanup_old_exports_ignores_files(tmp_path):
+    parent = tmp_path / "exports"
+    parent.mkdir()
+    stray = parent / "stray.txt"
+    stray.write_text("x")
+    now = 1_000_000.0
+    os.utime(stray, (now - 7200, now - 7200))
+
+    removed = export_utils.cleanup_old_exports(str(parent), 3600, now=now)
+
+    assert removed == []
+    assert stray.exists()  # only directories are swept

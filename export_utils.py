@@ -7,7 +7,13 @@ these can be unit-tested without loading any checkpoint.
 import csv
 import io
 import os
+import shutil
+import time
 import zipfile
+
+# Per-run export directories older than this (seconds) are swept at the start
+# of each analysis. Recent runs are kept so their download files stay servable.
+DEFAULT_EXPORT_TTL_SECONDS = 3600
 
 
 def format_time(t: float) -> str:
@@ -78,3 +84,26 @@ def make_zip(paths, zip_path) -> str:
         for p in paths:
             zf.write(p, arcname=os.path.basename(p))
     return zip_path
+
+
+def cleanup_old_exports(parent_dir, max_age_seconds, now=None) -> list:
+    """Remove run subdirectories of parent_dir older than max_age_seconds.
+
+    Only directories are swept (stray files are left alone). A missing
+    parent_dir is a no-op. Recent runs are preserved so their download files
+    remain servable. Returns the list of removed directory paths.
+    """
+    if now is None:
+        now = time.time()
+    removed = []
+    if not os.path.isdir(parent_dir):
+        return removed
+    cutoff = now - max_age_seconds
+    for name in sorted(os.listdir(parent_dir)):
+        path = os.path.join(parent_dir, name)
+        if not os.path.isdir(path):
+            continue
+        if os.path.getmtime(path) < cutoff:
+            shutil.rmtree(path, ignore_errors=True)
+            removed.append(path)
+    return removed

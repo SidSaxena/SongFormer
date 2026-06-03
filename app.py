@@ -473,6 +473,102 @@ def process_and_analyze(audio_file):
         return None, "", error_msg, None, None, None, None, None, None
 
 
+def process_batch(files, progress=gr.Progress()):
+    """Analyze multiple files sequentially, yielding live status.
+
+    Outputs (per yield): status rows, ZIP download update, file-selector
+    update, per-file results dict (for the detail viewer).
+    """
+    if not files:
+        yield (
+            [["(no files uploaded)", "", "", ""]],
+            gr.update(value=None),
+            gr.update(choices=[], value=None),
+            {},
+        )
+        return
+
+    exports_parent = os.path.join(tempfile.gettempdir(), "songformer_exports")
+    os.makedirs(exports_parent, exist_ok=True)
+    export_utils.cleanup_old_exports(
+        exports_parent, export_utils.DEFAULT_EXPORT_TTL_SECONDS
+    )
+    run_dir = tempfile.mkdtemp(prefix="run_", dir=exports_parent)
+    bundle = os.path.join(run_dir, "bundle")
+    os.makedirs(bundle, exist_ok=True)
+
+    status_rows = []
+    results = {}
+    named = []
+
+    for audio_file in progress.tqdm(files, desc="Analyzing"):
+        stem = export_utils.stem_of(audio_file)
+        try:
+            logits, msa_output = process_audio(audio_file)
+            msa_output = rule_post_processing(msa_output)
+            segments = format_as_segments(msa_output)
+            json_str = format_as_json(segments)
+            msa_str = format_as_msa(msa_output)
+            fig = create_visualization(logits, msa_output)
+            file_dir = os.path.join(bundle, stem)
+            os.makedirs(file_dir, exist_ok=True)
+            paths = export_utils.write_exports(
+                audio_file, segments, json_str, msa_str, fig, file_dir
+            )
+            plt.close(fig)
+            duration = (
+                export_utils.format_time(float(segments[-1]["end"]))
+                if segments
+                else ""
+            )
+            status_rows.append([stem, "✅", len(segments), duration])
+            results[stem] = {
+                "segments": segments,
+                "json": json_str,
+                "msa": msa_str,
+                "png": paths["png"],
+            }
+            named.append((stem, segments))
+        except Exception as e:
+            status_rows.append([stem, "❌ " + str(e)[:80], 0, ""])
+        yield status_rows, gr.update(), gr.update(), results
+
+    if named:
+        with open(
+            os.path.join(bundle, "summary.csv"), "w", encoding="utf-8", newline=""
+        ) as f:
+            f.write(export_utils.segments_to_combined_csv(named))
+        with open(
+            os.path.join(bundle, "combined.json"), "w", encoding="utf-8"
+        ) as f:
+            f.write(export_utils.combined_json(named))
+        zip_path = os.path.join(run_dir, "songformer_batch.zip")
+        export_utils.zip_dir(bundle, zip_path)
+    else:
+        zip_path = None
+
+    yield (
+        status_rows,
+        gr.update(value=zip_path),
+        gr.update(choices=list(results.keys()), value=None),
+        results,
+    )
+
+
+def on_select_file(stem, results):
+    """Render a previously-computed file's result in the batch detail viewer."""
+    results = results or {}
+    if not stem or stem not in results:
+        return None, "", "", None
+    r = results[stem]
+    return (
+        export_utils.segments_to_table(r["segments"]),
+        r["json"],
+        r["msa"],
+        r["png"],
+    )
+
+
 # Create Gradio interface
 with gr.Blocks(
     title="Music Structure Analysis",
@@ -628,11 +724,11 @@ with gr.Blocks(
                 label="Batch Status",
                 interactive=False,
             )
-            batch_zip_btn = gr.DownloadButton("⬇️ Download all (ZIP)")
+            batch_zip_btn = gr.DownloadButton("⬇️ Download all (ZIP)", variant="primary")
             batch_results_state = gr.State({})
             gr.Markdown("### Inspect a file")
             batch_file_selector = gr.Dropdown(
-                label="Processed file", choices=[], interactive=True
+                label="Processed File", choices=[], interactive=True
             )
             batch_detail_table = gr.Dataframe(
                 headers=["Start / s (m:s.ms)", "End / s (m:s.ms)", "Label"],
@@ -677,6 +773,26 @@ with gr.Blocks(
             download_csv_btn,
             download_png_btn,
             download_zip_btn,
+        ],
+    )
+    batch_analyze_btn.click(
+        fn=process_batch,
+        inputs=[batch_files],
+        outputs=[
+            batch_status,
+            batch_zip_btn,
+            batch_file_selector,
+            batch_results_state,
+        ],
+    )
+    batch_file_selector.change(
+        fn=on_select_file,
+        inputs=[batch_file_selector, batch_results_state],
+        outputs=[
+            batch_detail_table,
+            batch_detail_json,
+            batch_detail_msa,
+            batch_detail_plot,
         ],
     )
 

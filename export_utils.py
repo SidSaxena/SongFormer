@@ -9,6 +9,7 @@ import io
 import json
 import os
 import shutil
+import tempfile
 import time
 import zipfile
 
@@ -106,13 +107,16 @@ def combined_json(named) -> str:
     )
 
 
-def write_exports(audio_path, segments, json_str, msa_str, fig, out_dir) -> dict:
+def write_exports(audio_path, segments, json_str, msa_str, fig, out_dir, stem=None) -> dict:
     """Write json/msa/csv/png into out_dir; return {format: path}.
 
     Reuses the already-built json_str/msa_str from app.py rather than
-    re-serializing. Saves the matplotlib figure as PNG.
+    re-serializing. Saves the matplotlib figure as PNG. `stem` overrides the
+    filename stem (used by batch to keep de-duplicated folder and file names
+    consistent); defaults to the audio filename's stem.
     """
-    stem = stem_of(audio_path)
+    if stem is None:
+        stem = stem_of(audio_path)
     paths = {
         "json": os.path.join(out_dir, f"{stem}.json"),
         "msa": os.path.join(out_dir, f"{stem}.msa.txt"),
@@ -140,17 +144,29 @@ def make_zip(paths, zip_path) -> str:
     return zip_path
 
 
+# File types that are already compressed: deflating them again wastes CPU
+# (which matters because the batch ZIP is rebuilt incrementally per file).
+_STORED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".zip", ".mp3", ".flac", ".ogg"}
+
+
 def zip_dir(src_dir, zip_path) -> str:
     """Zip the contents of src_dir into zip_path.
 
-    Arcnames are relative to src_dir, preserving subfolders. Returns zip_path.
+    Arcnames are relative to src_dir, preserving subfolders. Files that are
+    already compressed (see _STORED_EXTENSIONS) are stored uncompressed.
+    Returns zip_path.
     """
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for root, _dirs, files in os.walk(src_dir):
             for name in files:
                 full = os.path.join(root, name)
                 arcname = os.path.relpath(full, src_dir)
-                zf.write(full, arcname=arcname)
+                compress = (
+                    zipfile.ZIP_STORED
+                    if os.path.splitext(name)[1].lower() in _STORED_EXTENSIONS
+                    else zipfile.ZIP_DEFLATED
+                )
+                zf.write(full, arcname=arcname, compress_type=compress)
     return zip_path
 
 
@@ -175,3 +191,16 @@ def cleanup_old_exports(parent_dir, max_age_seconds, now=None) -> list:
             shutil.rmtree(path, ignore_errors=True)
             removed.append(path)
     return removed
+
+
+def new_run_dir(parent_dir=None, ttl_seconds=DEFAULT_EXPORT_TTL_SECONDS) -> str:
+    """Create a fresh run directory for export files, sweeping stale runs.
+
+    Shared bootstrap for the single-file and batch handlers. parent_dir
+    defaults to <system tempdir>/songformer_exports.
+    """
+    if parent_dir is None:
+        parent_dir = os.path.join(tempfile.gettempdir(), "songformer_exports")
+    os.makedirs(parent_dir, exist_ok=True)
+    cleanup_old_exports(parent_dir, ttl_seconds)
+    return tempfile.mkdtemp(prefix="run_", dir=parent_dir)

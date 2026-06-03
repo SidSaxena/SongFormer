@@ -169,3 +169,56 @@ def test_zip_dir(tmp_path):
     with zipfile.ZipFile(zip_path) as zf:
         names = sorted(zf.namelist())
     assert names == ["Song1/Song1.json", "summary.csv"]
+
+
+def test_write_exports_custom_stem(tmp_path):
+    segments = [{"start": "0.0", "end": "1.0", "label": "intro"}]
+    fig = Figure()
+    fig.add_subplot(111).plot([0, 1], [0, 1])
+
+    paths = export_utils.write_exports(
+        "/some/dir/Song.mp3",
+        segments,
+        "[]",
+        "0.00 intro",
+        fig,
+        str(tmp_path),
+        stem="Song_2",
+    )
+
+    assert os.path.basename(paths["json"]) == "Song_2.json"
+    assert os.path.basename(paths["msa"]) == "Song_2.msa.txt"
+    assert os.path.basename(paths["csv"]) == "Song_2.csv"
+    assert os.path.basename(paths["png"]) == "Song_2.png"
+    for p in paths.values():
+        assert os.path.isfile(p)
+
+
+def test_zip_dir_stores_precompressed_files(tmp_path):
+    src = tmp_path / "bundle"
+    src.mkdir()
+    (src / "a.png").write_bytes(b"\x89PNG fake image bytes")
+    (src / "a.csv").write_text("x,y\n1,2\n")
+    zip_path = str(tmp_path / "batch.zip")
+
+    export_utils.zip_dir(str(src), zip_path)
+
+    with zipfile.ZipFile(zip_path) as zf:
+        assert zf.getinfo("a.png").compress_type == zipfile.ZIP_STORED
+        assert zf.getinfo("a.csv").compress_type == zipfile.ZIP_DEFLATED
+
+
+def test_new_run_dir(tmp_path):
+    parent = tmp_path / "exports"
+    # Pre-create a stale run dir that the bootstrap should sweep
+    stale = parent / "run_stale"
+    stale.mkdir(parents=True)
+    old = 1.0  # epoch: definitely older than any TTL
+    os.utime(stale, (old, old))
+
+    run_dir = export_utils.new_run_dir(parent_dir=str(parent))
+
+    assert os.path.isdir(run_dir)
+    assert os.path.dirname(run_dir) == str(parent)
+    assert os.path.basename(run_dir).startswith("run_")
+    assert not stale.exists()  # stale run swept by the bootstrap

@@ -15,7 +15,6 @@ import gradio as gr
 import torch
 import librosa
 import json
-import tempfile
 import math
 import importlib
 import matplotlib
@@ -415,6 +414,32 @@ def rule_post_processing(msa_list):
     return result
 
 
+def analyze_one(audio_file, out_dir, stem=None):
+    """Run the full per-file analysis pipeline and write export files.
+
+    Shared by the single-file and batch handlers so the two paths cannot
+    drift. Returns (segments, json_str, msa_str, fig, export_paths). The
+    caller owns the returned figure (single-file displays it via gr.Plot;
+    batch saves+closes it); on a write failure the figure is closed here
+    before re-raising so it never leaks.
+    """
+    logits, msa_output = process_audio(audio_file)
+    # Apply rule-based post-processing, if not needed, use in cli infer
+    msa_output = rule_post_processing(msa_output)
+    segments = format_as_segments(msa_output)
+    msa_str = format_as_msa(msa_output)
+    json_str = format_as_json(segments)
+    fig = create_visualization(logits, msa_output)
+    try:
+        export_paths = export_utils.write_exports(
+            audio_file, segments, json_str, msa_str, fig, out_dir, stem=stem
+        )
+    except Exception:
+        plt.close(fig)
+        raise
+    return segments, json_str, msa_str, fig, export_paths
+
+
 def process_and_analyze(audio_file):
     """Main processing function"""
 
@@ -422,32 +447,16 @@ def process_and_analyze(audio_file):
         return None, "", "", None, None, None, None, None, None
 
     try:
-        # Process audio
-        logits, msa_output = process_audio(audio_file)
-        # Apply rule-based post-processing, if not needed, use in cli infer
-        msa_output = rule_post_processing(msa_output)
-        # Format outputs
-        segments = format_as_segments(msa_output)
-        msa_format = format_as_msa(msa_output)
-        json_format = format_as_json(segments)
+        # Shared pipeline; exports land in a fresh per-run temp directory
+        # (stale runs are swept automatically by the bootstrap).
+        out_dir = export_utils.new_run_dir()
+        segments, json_format, msa_format, fig, export_paths = analyze_one(
+            audio_file, out_dir
+        )
 
         # Create table data
         table_data = export_utils.segments_to_table(segments)
 
-        # Create visualization
-        fig = create_visualization(logits, msa_output)
-
-        # Write downloadable export files into a per-run temp directory.
-        # Sweep stale run dirs first so they don't accumulate across runs.
-        exports_parent = os.path.join(tempfile.gettempdir(), "songformer_exports")
-        os.makedirs(exports_parent, exist_ok=True)
-        export_utils.cleanup_old_exports(
-            exports_parent, export_utils.DEFAULT_EXPORT_TTL_SECONDS
-        )
-        out_dir = tempfile.mkdtemp(prefix="run_", dir=exports_parent)
-        export_paths = export_utils.write_exports(
-            audio_file, segments, json_format, msa_format, fig, out_dir
-        )
         zip_path = os.path.join(
             out_dir, export_utils.stem_of(audio_file) + "_songformer.zip"
         )
@@ -493,12 +502,7 @@ def process_batch(files):
         )
         return
 
-    exports_parent = os.path.join(tempfile.gettempdir(), "songformer_exports")
-    os.makedirs(exports_parent, exist_ok=True)
-    export_utils.cleanup_old_exports(
-        exports_parent, export_utils.DEFAULT_EXPORT_TTL_SECONDS
-    )
-    run_dir = tempfile.mkdtemp(prefix="run_", dir=exports_parent)
+    run_dir = export_utils.new_run_dir()
     bundle = os.path.join(run_dir, "bundle")
     os.makedirs(bundle, exist_ok=True)
 
@@ -507,17 +511,18 @@ def process_batch(files):
     used_stems = set()
     queue = []
     for audio_file in files:
-        stem = export_utils.stem_of(audio_file)
+        base = export_utils.stem_of(audio_file)
+        stem = base
         n = 2
         while stem in used_stems:
-            stem = f"{export_utils.stem_of(audio_file)}_{n}"
+            stem = f"{base}_{n}"
             n += 1
         used_stems.add(stem)
         queue.append((audio_file, stem))
 
     status_rows = [[stem, "⏳ queued", "", ""] for _, stem in queue]
     results = {}
-    named = []
+    zipped_count = 0  # how many files the on-disk ZIP actually contains
     zip_path = os.path.join(run_dir, "songformer_batch.zip")
 
     def _rebuild_bundle_zip():
@@ -525,8 +530,10 @@ def process_batch(files):
 
         Called after each completed file so the download button always
         serves "everything so far". os.replace is atomic, so a click can
-        never observe a half-written archive.
+        never observe a half-written archive. The (stem, segments) pairs
+        are derived from `results` — the single source of truth.
         """
+        named = [(s, r["segments"]) for s, r in results.items()]
         with open(
             os.path.join(bundle, "summary.csv"), "w", encoding="utf-8", newline=""
         ) as f:
@@ -551,16 +558,10 @@ def process_batch(files):
         status_rows[idx] = [stem, "🔄 processing…", "", ""]
         yield status_rows, gr.update(), gr.update(), results
         try:
-            logits, msa_output = process_audio(audio_file)
-            msa_output = rule_post_processing(msa_output)
-            segments = format_as_segments(msa_output)
-            json_str = format_as_json(segments)
-            msa_str = format_as_msa(msa_output)
-            fig = create_visualization(logits, msa_output)
             file_dir = os.path.join(bundle, stem)
             os.makedirs(file_dir, exist_ok=True)
-            paths = export_utils.write_exports(
-                audio_file, segments, json_str, msa_str, fig, file_dir
+            segments, json_str, msa_str, fig, paths = analyze_one(
+                audio_file, file_dir, stem=stem
             )
             plt.close(fig)
             duration = (
@@ -576,19 +577,28 @@ def process_batch(files):
                 "png": paths["png"],
                 "audio": audio_file,
             }
-            named.append((stem, segments))
-            # Keep the ZIP downloadable mid-run with everything so far
-            _rebuild_bundle_zip()
         except Exception as e:
             import traceback
 
             print(f"Batch error for {stem}:\n{traceback.format_exc()}")
             status_rows[idx] = [stem, "❌ " + str(e)[:80], 0, ""]
-        if named:
+        else:
+            # A ZIP rebuild failure must NOT mark the analyzed file as
+            # failed: its exports exist and the next successful rebuild
+            # will include it (pairs derive from `results`).
+            try:
+                # Keep the ZIP downloadable mid-run with everything so far
+                _rebuild_bundle_zip()
+                zipped_count = len(results)
+            except Exception:
+                import traceback
+
+                print(f"ZIP rebuild error after {stem}:\n{traceback.format_exc()}")
+        if zipped_count:
             zip_update = gr.update(
                 value=zip_path,
                 interactive=True,
-                label=f"⬇️ Download all (ZIP) — {len(named)}/{len(queue)} files",
+                label=f"⬇️ Download all (ZIP) — {zipped_count}/{len(queue)} files",
             )
         else:
             zip_update = gr.update()
@@ -596,12 +606,13 @@ def process_batch(files):
         yield status_rows, zip_update, gr.update(choices=list(results.keys())), results
 
     # Manifests + ZIP were rebuilt incrementally per file; just normalize
-    # the button label now that the batch is complete.
+    # the button label now that the batch is complete. The button is only
+    # active if at least one rebuild actually produced a ZIP on disk.
     yield (
         status_rows,
         gr.update(
-            value=zip_path if named else None,
-            interactive=bool(named),
+            value=zip_path if zipped_count else None,
+            interactive=bool(zipped_count),
             label="⬇️ Download all (ZIP)",
         ),
         gr.update(choices=list(results.keys())),
@@ -611,6 +622,9 @@ def process_batch(files):
 
 def on_select_file(stem, results):
     """Render a previously-computed file's result in the batch detail viewer."""
+    # A selection can race an in-flight batch iteration under rare scheduler
+    # timings (choices reach the browser just before the state lands); the
+    # guard degrades to an empty view, recoverable by re-selecting.
     results = results or {}
     if not stem or stem not in results:
         return None, "", "", None, None

@@ -70,6 +70,20 @@ def segments_to_csv(segments) -> str:
     return buf.getvalue()
 
 
+def segments_to_audacity(segments) -> str:
+    """Build an Audacity label-track file from segment dicts.
+
+    One line per segment: start<TAB>end<TAB>label, seconds with six
+    decimals (Audacity's File > Import > Labels format).
+    """
+    lines = []
+    for seg in segments:
+        start = float(seg["start"])
+        end = float(seg["end"])
+        lines.append(f"{start:.6f}\t{end:.6f}\t{seg['label']}")
+    return "\n".join(lines) + ("\n" if lines else "")
+
+
 def segments_to_combined_csv(named) -> str:
     """Build a combined CSV across files.
 
@@ -108,7 +122,7 @@ def combined_json(named) -> str:
 
 
 def write_exports(audio_path, segments, json_str, msa_str, fig, out_dir, stem=None) -> dict:
-    """Write json/msa/csv/png into out_dir; return {format: path}.
+    """Write json/msa/csv/audacity/png into out_dir; return {format: path}.
 
     Reuses the already-built json_str/msa_str from app.py rather than
     re-serializing. Saves the matplotlib figure as PNG. `stem` overrides the
@@ -121,6 +135,7 @@ def write_exports(audio_path, segments, json_str, msa_str, fig, out_dir, stem=No
         "json": os.path.join(out_dir, f"{stem}.json"),
         "msa": os.path.join(out_dir, f"{stem}.msa.txt"),
         "csv": os.path.join(out_dir, f"{stem}.csv"),
+        "audacity": os.path.join(out_dir, f"{stem}.audacity.txt"),
         "png": os.path.join(out_dir, f"{stem}.png"),
     }
     with open(paths["json"], "w", encoding="utf-8") as f:
@@ -129,6 +144,8 @@ def write_exports(audio_path, segments, json_str, msa_str, fig, out_dir, stem=No
         f.write(msa_str)
     with open(paths["csv"], "w", encoding="utf-8", newline="") as f:
         f.write(segments_to_csv(segments))
+    with open(paths["audacity"], "w", encoding="utf-8") as f:
+        f.write(segments_to_audacity(segments))
     fig.savefig(paths["png"], dpi=150, bbox_inches="tight")
     return paths
 

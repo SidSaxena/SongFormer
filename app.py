@@ -549,6 +549,7 @@ def process_batch(files):
                 "json": json_str,
                 "msa": msa_str,
                 "png": paths["png"],
+                "audio": audio_file,
             }
             named.append((stem, segments))
         except Exception as e:
@@ -585,13 +586,14 @@ def on_select_file(stem, results):
     """Render a previously-computed file's result in the batch detail viewer."""
     results = results or {}
     if not stem or stem not in results:
-        return None, "", "", None
+        return None, "", "", None, None
     r = results[stem]
     return (
         export_utils.segments_to_table(r["segments"]),
         r["json"],
         r["msa"],
         r["png"],
+        r.get("audio"),
     )
 
 
@@ -761,9 +763,15 @@ with gr.Blocks(
                 )
             batch_results_state = gr.State({})
             gr.Markdown("### Inspect a file")
-            batch_file_selector = gr.Dropdown(
-                label="Processed File", choices=[], interactive=True
-            )
+            with gr.Row():
+                with gr.Column(scale=1):
+                    batch_file_selector = gr.Dropdown(
+                        label="Processed File", choices=[], interactive=True
+                    )
+                with gr.Column(scale=2):
+                    batch_detail_audio = gr.Audio(
+                        label="Listen", type="filepath", interactive=False
+                    )
             with gr.Row():
                 with gr.Column(scale=13):
                     batch_detail_table = gr.Dataframe(
@@ -834,6 +842,7 @@ with gr.Blocks(
             batch_detail_json,
             batch_detail_msa,
             batch_detail_plot,
+            batch_detail_audio,
         ],
     )
 

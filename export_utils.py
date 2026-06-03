@@ -135,6 +135,7 @@ def write_exports(audio_path, segments, json_str, msa_str, fig, out_dir, stem=No
         "json": os.path.join(out_dir, f"{stem}.json"),
         "msa": os.path.join(out_dir, f"{stem}.msa.txt"),
         "csv": os.path.join(out_dir, f"{stem}.csv"),
+        "audacity": os.path.join(out_dir, f"{stem}.audacity.txt"),
         "png": os.path.join(out_dir, f"{stem}.png"),
     }
     with open(paths["json"], "w", encoding="utf-8") as f:
@@ -143,6 +144,8 @@ def write_exports(audio_path, segments, json_str, msa_str, fig, out_dir, stem=No
         f.write(msa_str)
     with open(paths["csv"], "w", encoding="utf-8", newline="") as f:
         f.write(segments_to_csv(segments))
+    with open(paths["audacity"], "w", encoding="utf-8") as f:
+        f.write(segments_to_audacity(segments))
     fig.savefig(paths["png"], dpi=150, bbox_inches="tight")
     return paths
 

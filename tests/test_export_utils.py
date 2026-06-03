@@ -56,6 +56,7 @@ def test_write_exports(tmp_path):
     assert os.path.basename(paths["msa"]) == "Song.msa.txt"
     assert os.path.basename(paths["csv"]) == "Song.csv"
     assert os.path.basename(paths["png"]) == "Song.png"
+    assert os.path.basename(paths["audacity"]) == "Song.audacity.txt"
     # Every file exists and lives in tmp_path
     for p in paths.values():
         assert os.path.isfile(p)
@@ -65,6 +66,8 @@ def test_write_exports(tmp_path):
     with open(paths["msa"], encoding="utf-8") as f:
         assert f.read() == msa_str
     assert os.path.getsize(paths["png"]) > 0
+    with open(paths["audacity"], encoding="utf-8") as f:
+        assert f.read() == "0.000000\t1.000000\tintro\n"
 
 
 def test_make_zip(tmp_path):
@@ -190,6 +193,7 @@ def test_write_exports_custom_stem(tmp_path):
     assert os.path.basename(paths["msa"]) == "Song_2.msa.txt"
     assert os.path.basename(paths["csv"]) == "Song_2.csv"
     assert os.path.basename(paths["png"]) == "Song_2.png"
+    assert os.path.basename(paths["audacity"]) == "Song_2.audacity.txt"
     for p in paths.values():
         assert os.path.isfile(p)
 

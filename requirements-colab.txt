@@ -46,3 +46,7 @@ addict>=2.4.0
 blessed>=1.44.0
 PyPDF2>=3.0.0
 vmo>=0.30.5
+
+# Web UI (not guaranteed in Colab's pre-installed image; needs >=5.0 for
+# DownloadButton label/interactive updates used by the batch export tab)
+gradio>=5.0

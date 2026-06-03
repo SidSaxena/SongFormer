@@ -154,3 +154,18 @@ def test_combined_json():
     data = json.loads(export_utils.combined_json(named))
     assert set(data.keys()) == {"Song1", "Song2"}
     assert data["Song1"] == [{"start": 0.0, "end": 1.0, "label": "intro"}]
+
+
+def test_zip_dir(tmp_path):
+    src = tmp_path / "bundle"
+    (src / "Song1").mkdir(parents=True)
+    (src / "Song1" / "Song1.json").write_text("{}")
+    (src / "summary.csv").write_text("x")
+    zip_path = str(tmp_path / "batch.zip")
+
+    returned = export_utils.zip_dir(str(src), zip_path)
+
+    assert returned == zip_path
+    with zipfile.ZipFile(zip_path) as zf:
+        names = sorted(zf.namelist())
+    assert names == ["Song1/Song1.json", "summary.csv"]

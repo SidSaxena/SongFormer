@@ -140,6 +140,20 @@ def make_zip(paths, zip_path) -> str:
     return zip_path
 
 
+def zip_dir(src_dir, zip_path) -> str:
+    """Zip the contents of src_dir into zip_path.
+
+    Arcnames are relative to src_dir, preserving subfolders. Returns zip_path.
+    """
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root, _dirs, files in os.walk(src_dir):
+            for name in files:
+                full = os.path.join(root, name)
+                arcname = os.path.relpath(full, src_dir)
+                zf.write(full, arcname=arcname)
+    return zip_path
+
+
 def cleanup_old_exports(parent_dir, max_age_seconds, now=None) -> list:
     """Remove run subdirectories of parent_dir older than max_age_seconds.
 

@@ -38,3 +38,30 @@ def test_segments_to_csv_quotes_label_with_comma():
     segments = [{"start": "0.0", "end": "1.0", "label": "a,b"}]
     csv_text = export_utils.segments_to_csv(segments)
     assert '"a,b"' in csv_text
+
+
+def test_write_exports(tmp_path):
+    segments = [{"start": "0.0", "end": "1.0", "label": "intro"}]
+    json_str = json.dumps(segments)
+    msa_str = "0.00 intro\n1.00 end"
+    fig = Figure()
+    ax = fig.add_subplot(111)
+    ax.plot([0, 1], [0, 1])
+
+    paths = export_utils.write_exports(
+        "/some/dir/Song.mp3", segments, json_str, msa_str, fig, str(tmp_path)
+    )
+
+    assert os.path.basename(paths["json"]) == "Song.json"
+    assert os.path.basename(paths["msa"]) == "Song.msa.txt"
+    assert os.path.basename(paths["csv"]) == "Song.csv"
+    assert os.path.basename(paths["png"]) == "Song.png"
+    # Every file exists and lives in tmp_path
+    for p in paths.values():
+        assert os.path.isfile(p)
+    # Contents round-trip
+    with open(paths["json"], encoding="utf-8") as f:
+        assert json.load(f) == segments
+    with open(paths["msa"], encoding="utf-8") as f:
+        assert f.read() == msa_str
+    assert os.path.getsize(paths["png"]) > 0

@@ -44,3 +44,26 @@ def segments_to_csv(segments) -> str:
             ]
         )
     return buf.getvalue()
+
+
+def write_exports(audio_path, segments, json_str, msa_str, fig, out_dir) -> dict:
+    """Write json/msa/csv/png into out_dir; return {format: path}.
+
+    Reuses the already-built json_str/msa_str from app.py rather than
+    re-serializing. Saves the matplotlib figure as PNG.
+    """
+    stem = stem_of(audio_path)
+    paths = {
+        "json": os.path.join(out_dir, f"{stem}.json"),
+        "msa": os.path.join(out_dir, f"{stem}.msa.txt"),
+        "csv": os.path.join(out_dir, f"{stem}.csv"),
+        "png": os.path.join(out_dir, f"{stem}.png"),
+    }
+    with open(paths["json"], "w", encoding="utf-8") as f:
+        f.write(json_str)
+    with open(paths["msa"], "w", encoding="utf-8") as f:
+        f.write(msa_str)
+    with open(paths["csv"], "w", encoding="utf-8", newline="") as f:
+        f.write(segments_to_csv(segments))
+    fig.savefig(paths["png"], dpi=150, bbox_inches="tight")
+    return paths

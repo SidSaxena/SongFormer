@@ -68,6 +68,34 @@ def segments_to_csv(segments) -> str:
     return buf.getvalue()
 
 
+def segments_to_combined_csv(named) -> str:
+    """Build a combined CSV across files.
+
+    `named` is a list of (filename, segments). Columns:
+    filename, start_sec, start_mmss, end_sec, end_mmss, label.
+    """
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerow(
+        ["filename", "start_sec", "start_mmss", "end_sec", "end_mmss", "label"]
+    )
+    for filename, segments in named:
+        for seg in segments:
+            start = float(seg["start"])
+            end = float(seg["end"])
+            writer.writerow(
+                [
+                    filename,
+                    f"{start:.2f}",
+                    format_time(start),
+                    f"{end:.2f}",
+                    format_time(end),
+                    seg["label"],
+                ]
+            )
+    return buf.getvalue()
+
+
 def write_exports(audio_path, segments, json_str, msa_str, fig, out_dir) -> dict:
     """Write json/msa/csv/png into out_dir; return {format: path}.
 

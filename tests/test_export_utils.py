@@ -130,3 +130,17 @@ def test_segments_to_table():
         ["0.00 (00:00.000)", "12.34 (00:12.340)", "intro"],
         ["12.34 (00:12.340)", "45.67 (00:45.670)", "verse"],
     ]
+
+
+def test_segments_to_combined_csv():
+    named = [
+        ("Song1", [{"start": "0.0", "end": "1.0", "label": "intro"}]),
+        ("Song2", [{"start": "0.0", "end": "2.5", "label": "a,b"}]),
+    ]
+    csv_text = export_utils.segments_to_combined_csv(named)
+    lines = csv_text.strip().split("\n")
+    assert lines[0] == "filename,start_sec,start_mmss,end_sec,end_mmss,label"
+    assert lines[1] == "Song1,0.00,00:00.000,1.00,00:01.000,intro"
+    assert lines[2].startswith("Song2,0.00,00:00.000,2.50,00:02.500,")
+    assert '"a,b"' in csv_text
+    assert len(lines) == 3

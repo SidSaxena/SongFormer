@@ -122,7 +122,7 @@ def combined_json(named) -> str:
 
 
 def write_exports(audio_path, segments, json_str, msa_str, fig, out_dir, stem=None) -> dict:
-    """Write json/msa/csv/png into out_dir; return {format: path}.
+    """Write json/msa/csv/audacity/png into out_dir; return {format: path}.
 
     Reuses the already-built json_str/msa_str from app.py rather than
     re-serializing. Saves the matplotlib figure as PNG. `stem` overrides the

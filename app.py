@@ -497,12 +497,22 @@ def process_batch(files, progress=gr.Progress()):
     bundle = os.path.join(run_dir, "bundle")
     os.makedirs(bundle, exist_ok=True)
 
+    # Clear any previous run's results from the UI before starting
+    yield [], gr.update(value=None), gr.update(choices=[], value=None), {}
+
     status_rows = []
     results = {}
     named = []
+    used_stems = set()
 
     for audio_file in progress.tqdm(files, desc="Analyzing"):
+        # De-duplicate stems so same-named uploads don't overwrite each other
         stem = export_utils.stem_of(audio_file)
+        n = 2
+        while stem in used_stems:
+            stem = f"{export_utils.stem_of(audio_file)}_{n}"
+            n += 1
+        used_stems.add(stem)
         try:
             logits, msa_output = process_audio(audio_file)
             msa_output = rule_post_processing(msa_output)
@@ -530,6 +540,9 @@ def process_batch(files, progress=gr.Progress()):
             }
             named.append((stem, segments))
         except Exception as e:
+            import traceback
+
+            print(f"Batch error for {stem}:\n{traceback.format_exc()}")
             status_rows.append([stem, "❌ " + str(e)[:80], 0, ""])
         yield status_rows, gr.update(), gr.update(), results
 

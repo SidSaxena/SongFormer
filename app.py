@@ -444,7 +444,7 @@ def process_and_analyze(audio_file):
     """Main processing function"""
 
     if audio_file is None:
-        return None, "", "", None, None, None, None, None, None
+        return None, "", "", None, None, None, None, None, None, None
 
     try:
         # Shared pipeline; exports land in a fresh per-run temp directory
@@ -470,6 +470,7 @@ def process_and_analyze(audio_file):
             export_paths["json"],
             export_paths["msa"],
             export_paths["csv"],
+            export_paths["audacity"],
             export_paths["png"],
             zip_path,
         )
@@ -479,7 +480,7 @@ def process_and_analyze(audio_file):
 
         error_msg = f"Error: {str(e)}\n{traceback.format_exc()}"
         print(error_msg)  # 在命令行输出完整错误
-        return None, "", error_msg, None, None, None, None, None, None
+        return None, "", error_msg, None, None, None, None, None, None, None
 
 
 def process_batch(files):
@@ -772,6 +773,7 @@ with gr.Blocks(
                 download_json_btn = gr.DownloadButton("⬇️ JSON")
                 download_msa_btn = gr.DownloadButton("⬇️ MSA (.txt)")
                 download_csv_btn = gr.DownloadButton("⬇️ CSV")
+                download_audacity_btn = gr.DownloadButton("⬇️ Audacity (.txt)")
                 download_png_btn = gr.DownloadButton("⬇️ Plot (.png)")
                 download_zip_btn = gr.DownloadButton(
                     "⬇️ Download all (ZIP)", variant="primary"
@@ -860,6 +862,7 @@ with gr.Blocks(
             download_json_btn,
             download_msa_btn,
             download_csv_btn,
+            download_audacity_btn,
             download_png_btn,
             download_zip_btn,
         ],

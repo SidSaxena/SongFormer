@@ -67,3 +67,14 @@ def write_exports(audio_path, segments, json_str, msa_str, fig, out_dir) -> dict
         f.write(segments_to_csv(segments))
     fig.savefig(paths["png"], dpi=150, bbox_inches="tight")
     return paths
+
+
+def make_zip(paths, zip_path) -> str:
+    """Bundle the given files into zip_path using their basenames.
+
+    Returns zip_path.
+    """
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for p in paths:
+            zf.write(p, arcname=os.path.basename(p))
+    return zip_path

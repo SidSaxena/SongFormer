@@ -65,3 +65,17 @@ def test_write_exports(tmp_path):
     with open(paths["msa"], encoding="utf-8") as f:
         assert f.read() == msa_str
     assert os.path.getsize(paths["png"]) > 0
+
+
+def test_make_zip(tmp_path):
+    f1 = tmp_path / "a.json"
+    f1.write_text("{}")
+    f2 = tmp_path / "a.csv"
+    f2.write_text("x")
+    zip_path = str(tmp_path / "a_songformer.zip")
+
+    returned = export_utils.make_zip([str(f1), str(f2)], zip_path)
+
+    assert returned == zip_path
+    with zipfile.ZipFile(zip_path) as zf:
+        assert sorted(zf.namelist()) == ["a.csv", "a.json"]

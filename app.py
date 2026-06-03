@@ -34,6 +34,10 @@ from utils.fetch_pretrained import download_all
 
 import export_utils
 
+# ZeroGPU (Hugging Face Spaces). Preinstalled on the Space; this branch
+# is Space-only and never runs locally.
+import spaces
+
 # Constants
 MUSICFM_HOME_PATH = os.path.join("ckpts", "MusicFM")
 BEFORE_DOWNSAMPLING_FRAME_RATES = 25
@@ -121,6 +125,20 @@ def initialize_models(model_name: str, checkpoint: str, config_path: str):
     return hp
 
 
+def _gpu_duration(audio_path, win_size=420, hop_size=420, num_classes=128):
+    """Estimate GPU seconds for one file (ZeroGPU dynamic duration).
+
+    Conservative: 30s base + 0.2s per audio second, clamped to [60, 300].
+    Tune the constants from observed Space timings.
+    """
+    try:
+        audio_secs = librosa.get_duration(path=audio_path)
+    except Exception:
+        return 120
+    return int(min(300, max(60, 30 + 0.2 * audio_secs)))
+
+
+@spaces.GPU(duration=_gpu_duration)
 def process_audio(audio_path, win_size=420, hop_size=420, num_classes=128):
     """Process audio file and return structure analysis results"""
     global muq_model, musicfm_model, msa_model, device
@@ -582,6 +600,19 @@ def process_batch(files):
 
             print(f"Batch error for {stem}:\n{traceback.format_exc()}")
             status_rows[idx] = [stem, "❌ " + str(e)[:80], 0, ""]
+            # ZeroGPU quota exhausted: every remaining file would fail the
+            # same way, so skip them. (Message heuristic — ZeroGPU does not
+            # document a stable exception class.)
+            if "quota" in str(e).lower():
+                for j in range(idx + 1, len(queue)):
+                    status_rows[j] = [queue[j][1], "⏭️ skipped (GPU quota)", "", ""]
+                yield (
+                    status_rows,
+                    gr.update(),
+                    gr.update(choices=list(results.keys())),
+                    results,
+                )
+                break
         else:
             # A ZIP rebuild failure must NOT mark the analyzed file as
             # failed: its exports exist and the next successful rebuild
@@ -780,7 +811,10 @@ with gr.Blocks(
         with gr.Tab("Batch"):
             gr.Markdown(
                 "Upload multiple audio files, analyze them sequentially, "
-                "and download all results as a single ZIP."
+                "and download all results as a single ZIP.\n\n"
+                "*This Space runs on ZeroGPU: each file consumes your daily "
+                "GPU quota (2–40 min depending on account tier). The ZIP "
+                "below always contains everything analyzed so far.*"
             )
             with gr.Row():
                 with gr.Column(scale=3):
@@ -899,8 +933,6 @@ if __name__ == "__main__":
     )
     print("Models loaded successfully!")
 
-    # Launch interface
-    # Use SONGFORMER_SHARE=1 to get a public gradio.live URL
-    share = os.environ.get("SONGFORMER_SHARE", "0") == "1"
-    server_name = "0.0.0.0" if share else "127.0.0.1"
-    demo.launch(share=share, server_name=server_name, server_port=7891, debug=True)
+    # Launch interface (Spaces injects its own server settings; an explicit
+    # port would break the platform health check)
+    demo.launch()

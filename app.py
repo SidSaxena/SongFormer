@@ -541,74 +541,121 @@ with gr.Blocks(
         </div>
     """)
 
-    # Main input area
-    with gr.Row():
-        with gr.Column(scale=3):
-            audio_input = gr.Audio(
-                label="Upload Audio File", type="filepath", elem_id="audio-input"
+    with gr.Tabs():
+        with gr.Tab("Single File"):
+            # Main input area
+            with gr.Row():
+                with gr.Column(scale=3):
+                    audio_input = gr.Audio(
+                        label="Upload Audio File", type="filepath", elem_id="audio-input"
+                    )
+
+                with gr.Column(scale=1):
+                    gr.Markdown("### 📌 Examples")
+                    gr.Examples(
+                        examples=[
+                            ["examples/BC_5cd6a6.mp3"],
+                            ["examples/BC_282ece.mp3"],
+                            ["examples/BHX_0158_letitrock.wav"],
+                            ["examples/BHX_0374_drunkonyou.wav"],
+                        ],
+                        inputs=[audio_input],
+                        label="Click to load example",
+                    )
+
+            # Analyze button
+            with gr.Row():
+                analyze_btn = gr.Button(
+                    "🚀 Analyze Music Structure", variant="primary", scale=1
+                )
+
+            # Results display area
+            with gr.Row():
+                with gr.Column(scale=13):
+                    segments_table = gr.Dataframe(
+                        headers=["Start / s (m:s.ms)", "End / s (m:s.ms)", "Label"],
+                        label="Detected Music Segments",
+                        interactive=False,
+                        elem_id="result-table",
+                    )
+                with gr.Column(scale=8):
+                    with gr.Row():
+                        with gr.Accordion("📄 JSON Output", open=False):
+                            json_output = gr.Textbox(
+                                label="JSON Format",
+                                lines=15,
+                                max_lines=20,
+                                interactive=False,
+                                show_copy_button=True,
+                            )
+                    with gr.Row():
+                        with gr.Accordion("📋 MSA Text Output", open=False):
+                            msa_output = gr.Textbox(
+                                label="MSA Format",
+                                lines=15,
+                                max_lines=20,
+                                interactive=False,
+                                show_copy_button=True,
+                            )
+
+            # Visualization plot
+            with gr.Row():
+                plot_output = gr.Plot(label="Activation Curves Visualization")
+
+            # Export / download buttons (populated after analysis)
+            with gr.Row():
+                download_json_btn = gr.DownloadButton("⬇️ JSON")
+                download_msa_btn = gr.DownloadButton("⬇️ MSA (.txt)")
+                download_csv_btn = gr.DownloadButton("⬇️ CSV")
+                download_png_btn = gr.DownloadButton("⬇️ Plot (.png)")
+                download_zip_btn = gr.DownloadButton(
+                    "⬇️ Download all (ZIP)", variant="primary"
+                )
+
+        with gr.Tab("Batch"):
+            gr.Markdown(
+                "Upload multiple audio files, analyze them sequentially, "
+                "and download all results as a single ZIP."
             )
-
-        with gr.Column(scale=1):
-            gr.Markdown("### 📌 Examples")
-            gr.Examples(
-                examples=[
-                    ["examples/BC_5cd6a6.mp3"],
-                    ["examples/BC_282ece.mp3"],
-                    ["examples/BHX_0158_letitrock.wav"],
-                    ["examples/BHX_0374_drunkonyou.wav"],
-                ],
-                inputs=[audio_input],
-                label="Click to load example",
+            batch_files = gr.File(
+                label="Upload Audio Files",
+                file_count="multiple",
+                type="filepath",
             )
-
-    # Analyze button
-    with gr.Row():
-        analyze_btn = gr.Button(
-            "🚀 Analyze Music Structure", variant="primary", scale=1
-        )
-
-    # Results display area
-    with gr.Row():
-        with gr.Column(scale=13):
-            segments_table = gr.Dataframe(
+            batch_analyze_btn = gr.Button("🚀 Analyze Batch", variant="primary")
+            batch_status = gr.Dataframe(
+                headers=["File", "Status", "Segments", "Duration"],
+                label="Batch Status",
+                interactive=False,
+            )
+            batch_zip_btn = gr.DownloadButton("⬇️ Download all (ZIP)")
+            batch_results_state = gr.State({})
+            gr.Markdown("### Inspect a file")
+            batch_file_selector = gr.Dropdown(
+                label="Processed file", choices=[], interactive=True
+            )
+            batch_detail_table = gr.Dataframe(
                 headers=["Start / s (m:s.ms)", "End / s (m:s.ms)", "Label"],
                 label="Detected Music Segments",
                 interactive=False,
-                elem_id="result-table",
             )
-        with gr.Column(scale=8):
-            with gr.Row():
-                with gr.Accordion("📄 JSON Output", open=False):
-                    json_output = gr.Textbox(
-                        label="JSON Format",
-                        lines=15,
-                        max_lines=20,
-                        interactive=False,
-                        show_copy_button=True,
-                    )
-            with gr.Row():
-                with gr.Accordion("📋 MSA Text Output", open=False):
-                    msa_output = gr.Textbox(
-                        label="MSA Format",
-                        lines=15,
-                        max_lines=20,
-                        interactive=False,
-                        show_copy_button=True,
-                    )
-
-    # Visualization plot
-    with gr.Row():
-        plot_output = gr.Plot(label="Activation Curves Visualization")
-
-    # Export / download buttons (populated after analysis)
-    with gr.Row():
-        download_json_btn = gr.DownloadButton("⬇️ JSON")
-        download_msa_btn = gr.DownloadButton("⬇️ MSA (.txt)")
-        download_csv_btn = gr.DownloadButton("⬇️ CSV")
-        download_png_btn = gr.DownloadButton("⬇️ Plot (.png)")
-        download_zip_btn = gr.DownloadButton(
-            "⬇️ Download all (ZIP)", variant="primary"
-        )
+            with gr.Accordion("📄 JSON Output", open=False):
+                batch_detail_json = gr.Textbox(
+                    label="JSON Format",
+                    lines=15,
+                    max_lines=20,
+                    interactive=False,
+                    show_copy_button=True,
+                )
+            with gr.Accordion("📋 MSA Text Output", open=False):
+                batch_detail_msa = gr.Textbox(
+                    label="MSA Format",
+                    lines=15,
+                    max_lines=20,
+                    interactive=False,
+                    show_copy_button=True,
+                )
+            batch_detail_plot = gr.Image(label="Activation Curves Visualization")
 
     gr.HTML("""
         <div style="display: flex; justify-content: center; align-items: center;">

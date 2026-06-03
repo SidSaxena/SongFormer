@@ -134,15 +134,25 @@ them removes a merge-conflict source).
 - Build: `git checkout -b hf-space-new main` → apply overlay commit →
   `git branch -f hf-space hf-space-new` → `git push --force origin hf-space`.
   Old `hf-space` tip (`29ebdeb`) remains reachable by SHA for rollback.
-- Deploy (one-time remote setup, then per-release):
+- Deploy — **via `hf upload` snapshot, NOT git push.** (Verified during the
+  first deployment: the Hub's pre-receive hooks reject a direct git push
+  twice over — the branch history carries `figs/aslp.png` >10 MiB, and the
+  example .mp3/.wav files must be stored via Xet/LFS, which `hf upload`
+  handles automatically.)
 
   ```
-  git remote add space https://huggingface.co/spaces/SidSaxena/SongFormer
-  git push --force space hf-space:main
+  rm -rf /tmp/songformer-space-deploy && mkdir -p /tmp/songformer-space-deploy
+  git archive hf-space | tar -x -C /tmp/songformer-space-deploy
+  hf upload SidSaxena/SongFormer /tmp/songformer-space-deploy . \
+    --repo-type space --delete "*" \
+    --commit-message "Deploy hf-space @ $(git rev-parse --short hf-space)"
   ```
 
-  Auth via `hf auth login` / token with write access to the Space.
-  Rollback: `git push --force space <old-sha>:main`.
+  `git archive` exports tracked files only (no local artifacts); the
+  `--delete "*"` makes the upload a true sync (remote files absent from
+  the export are removed). Auth via `hf auth login` (token needs write
+  access to the Space). Rollback: re-run the same upload from a checkout
+  of any earlier `hf-space` SHA, or revert the commit in the Space UI.
 
 ## Sync runbook (future `main` features → Space)
 
@@ -161,7 +171,8 @@ Expected conflicts and resolutions:
 - Files pruned by the overlay re-appear as "added by them" → delete again
   (`git rm`).
 
-Then `git push --force space hf-space:main`.
+Then re-deploy with the `hf upload` snapshot from "Branch mechanics" above
+(and `git push --force origin hf-space` to keep GitHub in sync).
 
 ## Error handling / edge cases
 

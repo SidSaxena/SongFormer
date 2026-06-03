@@ -473,8 +473,13 @@ def process_and_analyze(audio_file):
         return None, "", error_msg, None, None, None, None, None, None
 
 
-def process_batch(files, progress=gr.Progress()):
+def process_batch(files):
     """Analyze multiple files sequentially, yielding live status.
+
+    The status table itself is the progress display: every file is listed
+    as queued upfront, flips to processing, then to done/failed. Dropdown
+    choices update as files finish so completed results can be inspected
+    while the rest of the batch is still running.
 
     Outputs (per yield): status rows, ZIP download update, file-selector
     update, per-file results dict (for the detail viewer).
@@ -497,22 +502,29 @@ def process_batch(files, progress=gr.Progress()):
     bundle = os.path.join(run_dir, "bundle")
     os.makedirs(bundle, exist_ok=True)
 
-    # Clear any previous run's results from the UI before starting
-    yield [], gr.update(value=None), gr.update(choices=[], value=None), {}
-
-    status_rows = []
-    results = {}
-    named = []
+    # De-duplicate stems upfront so same-named uploads don't overwrite each
+    # other and the queued list shows the final names.
     used_stems = set()
-
-    for audio_file in progress.tqdm(files, desc="Analyzing"):
-        # De-duplicate stems so same-named uploads don't overwrite each other
+    queue = []
+    for audio_file in files:
         stem = export_utils.stem_of(audio_file)
         n = 2
         while stem in used_stems:
             stem = f"{export_utils.stem_of(audio_file)}_{n}"
             n += 1
         used_stems.add(stem)
+        queue.append((audio_file, stem))
+
+    status_rows = [[stem, "⏳ queued", "", ""] for _, stem in queue]
+    results = {}
+    named = []
+
+    # List every file as queued; clear any previous run's results
+    yield status_rows, gr.update(value=None), gr.update(choices=[], value=None), {}
+
+    for idx, (audio_file, stem) in enumerate(queue):
+        status_rows[idx] = [stem, "🔄 processing…", "", ""]
+        yield status_rows, gr.update(), gr.update(), results
         try:
             logits, msa_output = process_audio(audio_file)
             msa_output = rule_post_processing(msa_output)
@@ -531,7 +543,7 @@ def process_batch(files, progress=gr.Progress()):
                 if segments
                 else ""
             )
-            status_rows.append([stem, "✅", len(segments), duration])
+            status_rows[idx] = [stem, "✅", len(segments), duration]
             results[stem] = {
                 "segments": segments,
                 "json": json_str,
@@ -543,8 +555,9 @@ def process_batch(files, progress=gr.Progress()):
             import traceback
 
             print(f"Batch error for {stem}:\n{traceback.format_exc()}")
-            status_rows.append([stem, "❌ " + str(e)[:80], 0, ""])
-        yield status_rows, gr.update(), gr.update(), results
+            status_rows[idx] = [stem, "❌ " + str(e)[:80], 0, ""]
+        # Completed files become inspectable while the batch continues
+        yield status_rows, gr.update(), gr.update(choices=list(results.keys())), results
 
     if named:
         with open(
@@ -563,7 +576,7 @@ def process_batch(files, progress=gr.Progress()):
     yield (
         status_rows,
         gr.update(value=zip_path),
-        gr.update(choices=list(results.keys()), value=None),
+        gr.update(choices=list(results.keys())),
         results,
     )
 
@@ -726,45 +739,59 @@ with gr.Blocks(
                 "Upload multiple audio files, analyze them sequentially, "
                 "and download all results as a single ZIP."
             )
-            batch_files = gr.File(
-                label="Upload Audio Files",
-                file_count="multiple",
-                type="filepath",
-            )
-            batch_analyze_btn = gr.Button("🚀 Analyze Batch", variant="primary")
-            batch_status = gr.Dataframe(
-                headers=["File", "Status", "Segments", "Duration"],
-                label="Batch Status",
-                interactive=False,
-            )
-            batch_zip_btn = gr.DownloadButton("⬇️ Download all (ZIP)", variant="primary")
+            with gr.Row():
+                with gr.Column(scale=3):
+                    batch_files = gr.File(
+                        label="Upload Audio Files",
+                        file_count="multiple",
+                        type="filepath",
+                    )
+                with gr.Column(scale=1):
+                    batch_analyze_btn = gr.Button(
+                        "🚀 Analyze Batch", variant="primary"
+                    )
+                    batch_zip_btn = gr.DownloadButton(
+                        "⬇️ Download all (ZIP)", variant="primary"
+                    )
+            with gr.Row():
+                batch_status = gr.Dataframe(
+                    headers=["File", "Status", "Segments", "Duration"],
+                    label="Batch Status",
+                    interactive=False,
+                )
             batch_results_state = gr.State({})
             gr.Markdown("### Inspect a file")
             batch_file_selector = gr.Dropdown(
                 label="Processed File", choices=[], interactive=True
             )
-            batch_detail_table = gr.Dataframe(
-                headers=["Start / s (m:s.ms)", "End / s (m:s.ms)", "Label"],
-                label="Detected Music Segments",
-                interactive=False,
-            )
-            with gr.Accordion("📄 JSON Output", open=False):
-                batch_detail_json = gr.Textbox(
-                    label="JSON Format",
-                    lines=15,
-                    max_lines=20,
-                    interactive=False,
-                    show_copy_button=True,
-                )
-            with gr.Accordion("📋 MSA Text Output", open=False):
-                batch_detail_msa = gr.Textbox(
-                    label="MSA Format",
-                    lines=15,
-                    max_lines=20,
-                    interactive=False,
-                    show_copy_button=True,
-                )
-            batch_detail_plot = gr.Image(label="Activation Curves Visualization")
+            with gr.Row():
+                with gr.Column(scale=13):
+                    batch_detail_table = gr.Dataframe(
+                        headers=["Start / s (m:s.ms)", "End / s (m:s.ms)", "Label"],
+                        label="Detected Music Segments",
+                        interactive=False,
+                    )
+                with gr.Column(scale=8):
+                    with gr.Row():
+                        with gr.Accordion("📄 JSON Output", open=False):
+                            batch_detail_json = gr.Textbox(
+                                label="JSON Format",
+                                lines=15,
+                                max_lines=20,
+                                interactive=False,
+                                show_copy_button=True,
+                            )
+                    with gr.Row():
+                        with gr.Accordion("📋 MSA Text Output", open=False):
+                            batch_detail_msa = gr.Textbox(
+                                label="MSA Format",
+                                lines=15,
+                                max_lines=20,
+                                interactive=False,
+                                show_copy_button=True,
+                            )
+            with gr.Row():
+                batch_detail_plot = gr.Image(label="Activation Curves Visualization")
 
     gr.HTML("""
         <div style="display: flex; justify-content: center; align-items: center;">
@@ -797,6 +824,7 @@ with gr.Blocks(
             batch_file_selector,
             batch_results_state,
         ],
+        show_progress="minimal",
     )
     batch_file_selector.change(
         fn=on_select_file,

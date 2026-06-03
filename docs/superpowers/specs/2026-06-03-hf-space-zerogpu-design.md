@@ -143,6 +143,12 @@ them removes a merge-conflict source).
   ```
   rm -rf /tmp/songformer-space-deploy && mkdir -p /tmp/songformer-space-deploy
   git archive hf-space | tar -x -C /tmp/songformer-space-deploy
+  # git archive does NOT include submodules: src/third_party/{MuQ,musicfm}
+  # are gitlinks. The app imports `musicfm` from there (MuQ comes from the
+  # pip `muq` package — its 26MB submodule is NOT needed). Export it too:
+  mkdir -p /tmp/songformer-space-deploy/src/third_party/musicfm
+  git -C src/third_party/musicfm archive HEAD \
+    | tar -x -C /tmp/songformer-space-deploy/src/third_party/musicfm
   hf upload SidSaxena/SongFormer /tmp/songformer-space-deploy . \
     --repo-type space --delete "*" \
     --commit-message "Deploy hf-space @ $(git rev-parse --short hf-space)"
@@ -150,9 +156,12 @@ them removes a merge-conflict source).
 
   `git archive` exports tracked files only (no local artifacts); the
   `--delete "*"` makes the upload a true sync (remote files absent from
-  the export are removed). Auth via `hf auth login` (token needs write
-  access to the Space). Rollback: re-run the same upload from a checkout
-  of any earlier `hf-space` SHA, or revert the commit in the Space UI.
+  the export are removed — which is also why the musicfm step is
+  mandatory: the first deploy omitted it and the Space failed at startup
+  with `ModuleNotFoundError: No module named 'musicfm'`). Auth via
+  `hf auth login` (token needs write access to the Space). Rollback:
+  re-run the same upload from a checkout of any earlier `hf-space` SHA,
+  or revert the commit in the Space UI.
 
 ## Sync runbook (future `main` features → Space)
 

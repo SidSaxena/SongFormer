@@ -47,6 +47,22 @@ DATASET_IDS = [5]
 TIME_DUR = 420
 INPUT_SAMPLING_RATE = 24000
 
+# Hardware-aware usage note shown on both tabs. ZeroGPU containers set
+# SPACES_ZERO_GPU; without it the Space is on plain CPU hardware.
+if os.environ.get("SPACES_ZERO_GPU"):
+    USAGE_NOTE = (
+        "*Running on ZeroGPU: each analyzed file consumes your daily GPU "
+        "quota — anonymous visitors 2 min, free accounts 5 min, PRO 40 min, "
+        "Team/Enterprise members 40/60 min. Remaining quota also sets your "
+        "queue priority.*"
+    )
+else:
+    USAGE_NOTE = (
+        "*Running on CPU hardware: analysis takes a few minutes per song. "
+        "On ZeroGPU hardware each file would consume daily GPU quota "
+        "(anonymous 2 min, free 5 min, PRO 40 min).*"
+    )
+
 # Global model variables
 muq_model = None
 musicfm_model = None
@@ -739,6 +755,7 @@ with gr.Blocks(
 
     with gr.Tabs():
         with gr.Tab("Single File"):
+            gr.Markdown(USAGE_NOTE)
             # Main input area
             with gr.Row():
                 with gr.Column(scale=3):
@@ -811,11 +828,11 @@ with gr.Blocks(
         with gr.Tab("Batch"):
             gr.Markdown(
                 "Upload multiple audio files, analyze them sequentially, "
-                "and download all results as a single ZIP.\n\n"
-                "*This Space runs on ZeroGPU: each file consumes your daily "
-                "GPU quota (2–40 min depending on account tier). The ZIP "
-                "below always contains everything analyzed so far.*"
+                "and download all results as a single ZIP — it always "
+                "contains everything analyzed so far, so you can download "
+                "mid-run."
             )
+            gr.Markdown(USAGE_NOTE)
             with gr.Row():
                 with gr.Column(scale=3):
                     batch_files = gr.File(

@@ -15,6 +15,7 @@ import gradio as gr
 import torch
 import librosa
 import json
+import tempfile
 import math
 import importlib
 import matplotlib
@@ -31,6 +32,8 @@ from musicfm.model.musicfm_25hz import MusicFM25Hz
 from postprocessing.functional import postprocess_functional_structure
 from dataset.label2id import DATASET_ID_ALLOWED_LABEL_IDS, DATASET_LABEL_TO_DATASET_ID
 from utils.fetch_pretrained import download_all
+
+import export_utils
 
 # Constants
 MUSICFM_HOME_PATH = os.path.join("ckpts", "MusicFM")
@@ -415,13 +418,8 @@ def rule_post_processing(msa_list):
 def process_and_analyze(audio_file):
     """Main processing function"""
 
-    def format_time(t: float) -> str:
-        minutes = int(t // 60)
-        seconds = t % 60
-        return f"{minutes:02d}:{seconds:06.3f}"  # 这个格式是正确的
-
     if audio_file is None:
-        return None, "", "", None
+        return None, "", "", None, None, None, None, None, None
 
     try:
         # Process audio
@@ -436,8 +434,8 @@ def process_and_analyze(audio_file):
         # Create table data
         table_data = [
             [
-                f"{float(seg['start']):.2f} ({format_time(float(seg['start']))})",
-                f"{float(seg['end']):.2f} ({format_time(float(seg['end']))})",
+                f"{float(seg['start']):.2f} ({export_utils.format_time(float(seg['start']))})",
+                f"{float(seg['end']):.2f} ({export_utils.format_time(float(seg['end']))})",
                 seg["label"],
             ]
             for seg in segments
@@ -446,14 +444,34 @@ def process_and_analyze(audio_file):
         # Create visualization
         fig = create_visualization(logits, msa_output)
 
-        return table_data, json_format, msa_format, fig
+        # Write downloadable export files into a per-run temp directory
+        out_dir = tempfile.mkdtemp(prefix="songformer_")
+        export_paths = export_utils.write_exports(
+            audio_file, segments, json_format, msa_format, fig, out_dir
+        )
+        zip_path = os.path.join(
+            out_dir, export_utils.stem_of(audio_file) + "_songformer.zip"
+        )
+        export_utils.make_zip(list(export_paths.values()), zip_path)
+
+        return (
+            table_data,
+            json_format,
+            msa_format,
+            fig,
+            export_paths["json"],
+            export_paths["msa"],
+            export_paths["csv"],
+            export_paths["png"],
+            zip_path,
+        )
 
     except Exception as e:
         import traceback
 
         error_msg = f"Error: {str(e)}\n{traceback.format_exc()}"
         print(error_msg)  # 在命令行输出完整错误
-        return None, "", error_msg, None
+        return None, "", error_msg, None, None, None, None, None, None
 
 
 # Create Gradio interface
@@ -583,6 +601,16 @@ with gr.Blocks(
     with gr.Row():
         plot_output = gr.Plot(label="Activation Curves Visualization")
 
+    # Export / download buttons (populated after analysis)
+    with gr.Row():
+        download_json_btn = gr.DownloadButton("⬇️ JSON")
+        download_msa_btn = gr.DownloadButton("⬇️ MSA (.txt)")
+        download_csv_btn = gr.DownloadButton("⬇️ CSV")
+        download_png_btn = gr.DownloadButton("⬇️ Plot (.png)")
+        download_zip_btn = gr.DownloadButton(
+            "⬇️ Download all (ZIP)", variant="primary"
+        )
+
     gr.HTML("""
         <div style="display: flex; justify-content: center; align-items: center;">
             <img src="https://raw.githubusercontent.com/ASLP-lab/SongFormer/refs/heads/main/figs/aslp.png" style="max-width: 300px; height: auto;" />
@@ -593,7 +621,17 @@ with gr.Blocks(
     analyze_btn.click(
         fn=process_and_analyze,
         inputs=[audio_input],
-        outputs=[segments_table, json_output, msa_output, plot_output],
+        outputs=[
+            segments_table,
+            json_output,
+            msa_output,
+            plot_output,
+            download_json_btn,
+            download_msa_btn,
+            download_csv_btn,
+            download_png_btn,
+            download_zip_btn,
+        ],
     )
 
 if __name__ == "__main__":

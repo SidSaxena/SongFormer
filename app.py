@@ -17,6 +17,9 @@ import librosa
 import json
 import math
 import importlib
+import matplotlib
+
+matplotlib.use("Agg")  # non-interactive backend: safe for rendering plots off the main thread
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from pathlib import Path
@@ -532,9 +535,10 @@ with gr.Blocks(
             gr.Markdown("### 📌 Examples")
             gr.Examples(
                 examples=[
-                    # Add your example audio file paths
-                    # ["example1.mp3"],
-                    # ["example2.mp3"],
+                    ["examples/BC_5cd6a6.mp3"],
+                    ["examples/BC_282ece.mp3"],
+                    ["examples/BHX_0158_letitrock.wav"],
+                    ["examples/BHX_0374_drunkonyou.wav"],
                 ],
                 inputs=[audio_input],
                 label="Click to load example",

@@ -6,6 +6,7 @@ these can be unit-tested without loading any checkpoint.
 
 import csv
 import io
+import json
 import os
 import shutil
 import time
@@ -94,6 +95,15 @@ def segments_to_combined_csv(named) -> str:
                 ]
             )
     return buf.getvalue()
+
+
+def combined_json(named) -> str:
+    """Build a combined JSON mapping {filename: segments} across files."""
+    return json.dumps(
+        {filename: segments for filename, segments in named},
+        indent=2,
+        ensure_ascii=False,
+    )
 
 
 def write_exports(audio_path, segments, json_str, msa_str, fig, out_dir) -> dict:

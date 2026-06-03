@@ -144,3 +144,13 @@ def test_segments_to_combined_csv():
     assert lines[2].startswith("Song2,0.00,00:00.000,2.50,00:02.500,")
     assert '"a,b"' in csv_text
     assert len(lines) == 3
+
+
+def test_combined_json():
+    named = [
+        ("Song1", [{"start": 0.0, "end": 1.0, "label": "intro"}]),
+        ("Song2", [{"start": 0.0, "end": 2.0, "label": "verse"}]),
+    ]
+    data = json.loads(export_utils.combined_json(named))
+    assert set(data.keys()) == {"Song1", "Song2"}
+    assert data["Song1"] == [{"start": 0.0, "end": 1.0, "label": "intro"}]

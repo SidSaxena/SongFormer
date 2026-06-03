@@ -20,3 +20,27 @@ def format_time(t: float) -> str:
 def stem_of(audio_path: str) -> str:
     """Return the audio filename without directory or extension."""
     return os.path.splitext(os.path.basename(audio_path))[0]
+
+
+def segments_to_csv(segments) -> str:
+    """Build CSV text from segment dicts.
+
+    Each segment is {"start": str|float, "end": str|float, "label": str}.
+    Columns: start_sec, start_mmss, end_sec, end_mmss, label.
+    """
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerow(["start_sec", "start_mmss", "end_sec", "end_mmss", "label"])
+    for seg in segments:
+        start = float(seg["start"])
+        end = float(seg["end"])
+        writer.writerow(
+            [
+                f"{start:.2f}",
+                format_time(start),
+                f"{end:.2f}",
+                format_time(end),
+                seg["label"],
+            ]
+        )
+    return buf.getvalue()

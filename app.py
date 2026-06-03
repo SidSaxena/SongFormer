@@ -679,13 +679,13 @@ with gr.Blocks(
         <div class="links-container">
             <img src="https://img.shields.io/badge/Python-3.10-brightgreen" alt="Python">
             <img src="https://img.shields.io/badge/License-CC%20BY%204.0-lightblue" alt="License">
-            <a href="https://arxiv.org/abs/">
-            <img src="https://img.shields.io/badge/arXiv-com.svg?logo=arXiv" alt="arXiv">
+            <a href="https://arxiv.org/abs/2510.02797">
+            <img src="https://img.shields.io/badge/arXiv-2510.02797-blue" alt="arXiv">
             </a>
             <a href="https://github.com/ASLP-lab/SongFormer">
             <img src="https://img.shields.io/badge/GitHub-SongFormer-black" alt="GitHub">
             </a>
-            <a href="https://huggingface.co/spaces/ASLP-lab/SongFormer">
+            <a href="https://huggingface.co/spaces/SidSaxena/SongFormer">
             <img src="https://img.shields.io/badge/HuggingFace-space-yellow" alt="HuggingFace Space">
             </a>
             <a href="https://huggingface.co/ASLP-lab/SongFormer">
@@ -697,7 +697,7 @@ with gr.Blocks(
             <a href="https://huggingface.co/datasets/ASLP-lab/SongFormBench">
             <img src="https://img.shields.io/badge/HF%20Dataset-SongFormBench-orange" alt="Dataset SongFormBench">
             </a>
-            <a href="https://discord.gg/rwcqh7Em">
+            <a href="https://discord.gg/p5uBryC4Zs">
             <img src="https://img.shields.io/badge/Discord-join%20us-purple?logo=discord&logoColor=white" alt="Discord">
             </a>
             <a href="http://www.npu-aslp.org/">

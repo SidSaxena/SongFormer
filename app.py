@@ -518,9 +518,34 @@ def process_batch(files):
     status_rows = [[stem, "⏳ queued", "", ""] for _, stem in queue]
     results = {}
     named = []
+    zip_path = os.path.join(run_dir, "songformer_batch.zip")
+
+    def _rebuild_bundle_zip():
+        """Rewrite manifests and atomically swap in an updated ZIP.
+
+        Called after each completed file so the download button always
+        serves "everything so far". os.replace is atomic, so a click can
+        never observe a half-written archive.
+        """
+        with open(
+            os.path.join(bundle, "summary.csv"), "w", encoding="utf-8", newline=""
+        ) as f:
+            f.write(export_utils.segments_to_combined_csv(named))
+        with open(
+            os.path.join(bundle, "combined.json"), "w", encoding="utf-8"
+        ) as f:
+            f.write(export_utils.combined_json(named))
+        part = zip_path + ".part"
+        export_utils.zip_dir(bundle, part)
+        os.replace(part, zip_path)
 
     # List every file as queued; clear any previous run's results
-    yield status_rows, gr.update(value=None), gr.update(choices=[], value=None), {}
+    yield (
+        status_rows,
+        gr.update(value=None, interactive=False, label="⬇️ Download all (ZIP)"),
+        gr.update(choices=[], value=None),
+        {},
+    )
 
     for idx, (audio_file, stem) in enumerate(queue):
         status_rows[idx] = [stem, "🔄 processing…", "", ""]
@@ -552,31 +577,33 @@ def process_batch(files):
                 "audio": audio_file,
             }
             named.append((stem, segments))
+            # Keep the ZIP downloadable mid-run with everything so far
+            _rebuild_bundle_zip()
         except Exception as e:
             import traceback
 
             print(f"Batch error for {stem}:\n{traceback.format_exc()}")
             status_rows[idx] = [stem, "❌ " + str(e)[:80], 0, ""]
+        if named:
+            zip_update = gr.update(
+                value=zip_path,
+                interactive=True,
+                label=f"⬇️ Download all (ZIP) — {len(named)}/{len(queue)} files",
+            )
+        else:
+            zip_update = gr.update()
         # Completed files become inspectable while the batch continues
-        yield status_rows, gr.update(), gr.update(choices=list(results.keys())), results
+        yield status_rows, zip_update, gr.update(choices=list(results.keys())), results
 
-    if named:
-        with open(
-            os.path.join(bundle, "summary.csv"), "w", encoding="utf-8", newline=""
-        ) as f:
-            f.write(export_utils.segments_to_combined_csv(named))
-        with open(
-            os.path.join(bundle, "combined.json"), "w", encoding="utf-8"
-        ) as f:
-            f.write(export_utils.combined_json(named))
-        zip_path = os.path.join(run_dir, "songformer_batch.zip")
-        export_utils.zip_dir(bundle, zip_path)
-    else:
-        zip_path = None
-
+    # Manifests + ZIP were rebuilt incrementally per file; just normalize
+    # the button label now that the batch is complete.
     yield (
         status_rows,
-        gr.update(value=zip_path),
+        gr.update(
+            value=zip_path if named else None,
+            interactive=bool(named),
+            label="⬇️ Download all (ZIP)",
+        ),
         gr.update(choices=list(results.keys())),
         results,
     )
@@ -753,7 +780,7 @@ with gr.Blocks(
                         "🚀 Analyze Batch", variant="primary"
                     )
                     batch_zip_btn = gr.DownloadButton(
-                        "⬇️ Download all (ZIP)", variant="primary"
+                        "⬇️ Download all (ZIP)", variant="primary", interactive=False
                     )
             with gr.Row():
                 batch_status = gr.Dataframe(

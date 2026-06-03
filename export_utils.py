@@ -28,6 +28,22 @@ def stem_of(audio_path: str) -> str:
     return os.path.splitext(os.path.basename(audio_path))[0]
 
 
+def segments_to_table(segments) -> list:
+    """Build display table rows: [start "(mm:ss.mmm)", end "(mm:ss.mmm)", label]."""
+    rows = []
+    for seg in segments:
+        start = float(seg["start"])
+        end = float(seg["end"])
+        rows.append(
+            [
+                f"{start:.2f} ({format_time(start)})",
+                f"{end:.2f} ({format_time(end)})",
+                seg["label"],
+            ]
+        )
+    return rows
+
+
 def segments_to_csv(segments) -> str:
     """Build CSV text from segment dicts.
 

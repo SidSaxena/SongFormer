@@ -432,14 +432,7 @@ def process_and_analyze(audio_file):
         json_format = format_as_json(segments)
 
         # Create table data
-        table_data = [
-            [
-                f"{float(seg['start']):.2f} ({export_utils.format_time(float(seg['start']))})",
-                f"{float(seg['end']):.2f} ({export_utils.format_time(float(seg['end']))})",
-                seg["label"],
-            ]
-            for seg in segments
-        ]
+        table_data = export_utils.segments_to_table(segments)
 
         # Create visualization
         fig = create_visualization(logits, msa_output)

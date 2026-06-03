@@ -118,3 +118,15 @@ def test_cleanup_old_exports_ignores_files(tmp_path):
 
     assert removed == []
     assert stray.exists()  # only directories are swept
+
+
+def test_segments_to_table():
+    segments = [
+        {"start": "0.0", "end": "12.34", "label": "intro"},
+        {"start": "12.34", "end": "45.67", "label": "verse"},
+    ]
+    rows = export_utils.segments_to_table(segments)
+    assert rows == [
+        ["0.00 (00:00.000)", "12.34 (00:12.340)", "intro"],
+        ["12.34 (00:12.340)", "45.67 (00:45.670)", "verse"],
+    ]
